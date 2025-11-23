@@ -2,9 +2,13 @@ data/
 *.ipynb_checkpoints
 documents/
 __pycache__/
+wandb/
 rough.ipynb
+.env
 
 *.pdf
 *.docx
 *.pptx
 *.doc
+*.csv
+*.xlsx
