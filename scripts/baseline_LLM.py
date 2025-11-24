@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score
 from google import genai
 from google.genai.types import HttpOptions
 
-from preprocess import (
+from scripts.preprocess import (
     DatasetConfig,
     load_tabular_dataset,
     preprocess_titanic,
