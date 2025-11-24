@@ -5,16 +5,6 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 
-@dataclass
-class DatasetConfig:
-    name: str
-    path: str
-    target_col: str
-    preprocess_fn: Optional[Callable[[pd.DataFrame], pd.DataFrame]] = None
-    test_size: float = 0.2
-    random_state: int = 42
-
-
 def preprocess_world_air_quality(df: pd.DataFrame) -> pd.DataFrame:
     # Keep only pollutant values (X) + AQI category (Y)
     keep_cols = [
