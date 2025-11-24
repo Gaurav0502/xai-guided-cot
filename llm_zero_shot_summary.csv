@@ -1,0 +1,7 @@
+dataset,prompt_mode,num_eval_samples,accuracy,f1_macro
+world_air_quality,with_names,50,1.0,1.0
+world_air_quality,anonymized,50,0.16,0.11728937728937727
+wine_quality,with_names,50,0.28,0.187924788683802
+wine_quality,anonymized,50,0.36,0.18233618233618235
+titanic,with_names,50,0.82,0.7716894977168949
+titanic,anonymized,50,0.54,0.47987336047037543
