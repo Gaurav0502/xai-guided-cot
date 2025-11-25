@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import json
 from scripts.sanitize_wandb_config import sanitize_wandb_config
-from scripts.dataset import Dataset
+from scripts.configs import Dataset
 
 # module used for model training
 from sklearn.model_selection import train_test_split

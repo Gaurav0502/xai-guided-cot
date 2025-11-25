@@ -1,5 +1,4 @@
-from scripts.dataset import Dataset
-
+from scripts.configs import Dataset
 
 def zero_shot_prompt_generator(dataset: Dataset, example: str, labels: list[str]) -> str:
 

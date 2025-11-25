@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
+from scripts.configs import Dataset as DatasetConfig
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
