@@ -43,7 +43,7 @@ class ObjectiveJudge:
             custom_id=request_id,
             params=MessageCreateParamsNonStreaming(
                 model=self.model.name,
-                max_tokens=4096,
+                max_tokens=self.model.max_tokens,
                 temperature=self.model.temperature,
                 messages=[
                     {"role": "user", "content": prompt}
