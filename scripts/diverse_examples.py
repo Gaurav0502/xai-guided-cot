@@ -18,6 +18,7 @@ CW_BUDGET = MAX_TOKENS // NUM_TOKENS_PER_REASON
 def get_diverse_examples(shap_values_fp: str):
 
     shap_values = pd.read_csv(shap_values_fp)
+    shap_values.set_index("idx", inplace=True)
 
     scaler = StandardScaler()
     shap_values_scaled = scaler.fit_transform(shap_values)
@@ -51,7 +52,8 @@ def get_diverse_examples(shap_values_fp: str):
         cluster_center = kmeans.cluster_centers_[cluster_id]
 
         distances = np.linalg.norm(shap_values_scaled[cluster_indices] - cluster_center, axis=1)
-        closest_index = cluster_indices[np.argmin(distances)]
+        closest_pos = cluster_indices[np.argmin(distances)]
+        closest_index = shap_values.index[closest_pos]
         diverse_indices.append(closest_index)
     
     print(f"Chosen {len(diverse_indices)} diverse examples.")

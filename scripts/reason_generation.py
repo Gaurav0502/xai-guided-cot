@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 # user defined modules
 from scripts.configs import Dataset, Model
+from scripts.postprocess import parse_reasoning_llm_results
 
 # module for env variables
 import os
@@ -61,15 +62,17 @@ class ReasonGenerator:
 
         train_idx = self.dataset_config["train_data_idx"]
         train_preds = self.dataset_config["train_predictions"]
-        train_df = pd.DataFrame.from_dict(zip(train_idx, train_preds),
-                                         columns=["idx", "prediction"])
-        train_df.set_index("idx", inplace=True)
+        train_df = pd.DataFrame.from_dict(dict(zip(train_idx, train_preds)),
+                                         columns=["prediction"],
+                                         orient="index")
 
         df = pd.read_csv(self.dataset.path)
+        df = self.dataset.preprocess_fn(df)
         df = df.loc[unique_row_idx]
         train_df = train_df.loc[unique_row_idx]
 
         df_shap = pd.read_csv(self.dataset.shap_vals_path)
+        df_shap.set_index("idx", inplace=True)
         df_shap = df_shap.loc[unique_row_idx]
         self.batches = []
         batch_id = 0
@@ -90,7 +93,7 @@ class ReasonGenerator:
                 feature_importances=feature_imps
             )
 
-            request_id = f"reasoning_batch-{batch_id}"
+            request_id = f"reasoning_batch-{int(idx)}"
 
             batch = self.__create_batch(
                 request_id=request_id,
@@ -120,13 +123,15 @@ class ReasonGenerator:
             time.sleep(10)
             batch_status = client.batches.get_batch(batch.id)
             print(f"Current Status: {batch_status.status}")
+            if "COMPLETED" in batch_status.status:
+                print("Batch completed successfully.")
+                break
         
-        if batch.status == "COMPLETED":
+        if "COMPLETED" in batch_status.status:
             destination_file_name = f"data/batch_outputs/{self.dataset.name}_reasoning_predictions.jsonl"
 
             client.files.retrieve_content(id=batch_status.output_file_id, 
                                           output=destination_file_name)
-    
         
 
 

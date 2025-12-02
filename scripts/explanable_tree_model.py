@@ -125,7 +125,9 @@ class ExplainableModel:
         shap_vals_path = os.path.join(SHAP_DATA_DIR, 
                                       os.path.basename(self.dataset_path).replace('.csv', 
                                                                                   '_shap.csv'))
-        df_shap.to_csv(shap_vals_path, index=False)
+        df_shap.index = self.X_train.index
+        df_shap.index.name = "idx"
+        df_shap.to_csv(shap_vals_path, index=True)
 
         log = {
             "dataset_path": self.dataset_path,
@@ -146,9 +148,9 @@ class ExplainableModel:
         
         print(f"Logged explanation data to {dataset_config_path}")
 
-    def explain(self):
+    def explain(self, params_grid_file: str):
         
-        self.__tune(params_grid_file="data/tune_config/xgb.json")
+        self.__tune(params_grid_file=params_grid_file)
         print("Completed hyperparameter tuning.")
         self.__train_model()
         print("Trained model with best hyperparameters.")
