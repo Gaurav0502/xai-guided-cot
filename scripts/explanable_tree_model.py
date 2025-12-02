@@ -109,6 +109,8 @@ class ExplainableModel:
         best_params = sanitize_wandb_config(best_params)
         self.model.set_params(**best_params)
         self.model.fit(self.X_train, self.y_train)
+        self.train_pred = self.model.predict(self.X_train).tolist()
+        self.test_pred = self.model.predict(self.X_test).tolist()
     
     def __log(self):
 
@@ -130,7 +132,9 @@ class ExplainableModel:
             "shap_values_path": shap_vals_path,
             "feature_importances": feature_imps,
             "train_data_idx": self.X_train.index.tolist(),
-            "test_data_idx": self.X_test.index.tolist()
+            "test_data_idx": self.X_test.index.tolist(),
+            "train_predictions": self.train_pred,
+            "test_predictions": self.test_pred
         }
 
         dataset_config_path = os.path.join(DATASET_CONFIG_DIR, 
