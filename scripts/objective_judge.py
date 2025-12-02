@@ -36,6 +36,7 @@ class ObjectiveJudge:
         self.batches = []
         self.evals = []
         self.batch_id = None
+        self.filepath = f"data/batch_outputs/{self.dataset.name}_objective_judge_evaluations.jsonl"
     
     def __create_batch(self, request_id: str, prompt: str) -> Request:
 
@@ -60,15 +61,17 @@ class ObjectiveJudge:
 
         train_idx = self.dataset_config["train_data_idx"]
         train_preds = self.dataset_config["train_predictions"]
-        train_df = pd.DataFrame.from_dict(zip(train_idx, train_preds),
-                                         columns=["idx", "prediction"])
-        train_df.set_index("idx", inplace=True)
-
+        train_df = pd.DataFrame.from_dict(dict(zip(train_idx, train_preds)),
+                                         columns=["prediction"],
+                                         orient="index")
+        
         df = pd.read_csv(self.dataset.path)
+        df = self.dataset.preprocess_fn(df)
         df = df.loc[unique_row_idx]
         train_df = train_df.loc[unique_row_idx]
 
         df_shap = pd.read_csv(self.dataset.shap_vals_path)
+        df_shap.set_index("idx", inplace=True)
         df_shap = df_shap.loc[unique_row_idx]
         self.batches = []
         batch_id = 0
@@ -91,7 +94,7 @@ class ObjectiveJudge:
                 reason=reason
             )
 
-            request_id = f"judge_batch-{batch_id}"
+            request_id = f"judge_batch-{idx}"
 
             batch = self.__create_batch(
                 request_id=request_id,
@@ -102,8 +105,7 @@ class ObjectiveJudge:
         
     def __retrieve_batch_results(self, client: anthropic.Anthropic):
 
-        results = {}
-        message_batch = client.messages.batches.results(
+        results = client.messages.batches.results(
             self.batch_id
         )
 
@@ -113,7 +115,11 @@ class ObjectiveJudge:
             match result.result.type:
                case "succeeded":
                     result_types["succeeded"] += 1
-                    self.evals.append(result["result"]["message"]["content"]["text"])
+                    result_dict = {
+                        "request_id": result.custom_id,
+                        "evaluation": result.result.message.content[0].text
+                    }
+                    self.evals.append(result_dict)
                case "errored":
                     result_types["errored"] += 1
                case "expired":
@@ -121,16 +127,22 @@ class ObjectiveJudge:
         
         print("Batch result types:", result_types)
 
+    def __save_to_jsonl(self):
+
+        with open(self.filepath, "w") as f:
+            for eval in self.evals:
+                f.write(json.dumps(eval) + "\n")
+        print(f"Saved evaluations to {self.filepath}")
 
     def submit_batch(self):
 
         client = anthropic.Anthropic(api_key=CLAUDE_API_KEY)
-        batch_info = client.messages.batch.create(
+        batch_info = client.messages.batches.create(
             requests=self.batches
         )
 
-        print("Submitted batch with id:", batch_info["id"])
-        self.batch_id = batch_info["id"]
+        print("Submitted batch with id:", batch_info.id)
+        self.batch_id = batch_info.id
 
         message_batch = None
         while True:
@@ -146,3 +158,4 @@ class ObjectiveJudge:
         print(f"Batch {self.batch_id} has completed processing.")
 
         self.__retrieve_batch_results(client)
+        self.__save_to_jsonl()

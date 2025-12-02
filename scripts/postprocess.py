@@ -17,5 +17,17 @@ def parse_reasoning_llm_results(results_jsonl_path: str) -> dict:
     
     return reasoning
     
+def parse_objective_judge_results(results_jsonl_path: str) -> dict:
 
+    evaluations = dict()
+    with open(results_jsonl_path, 'r') as f:
+        for line in f:
+            response = json.loads(line.strip())
+            row_id = int(response["request_id"].split("-")[1])
+
+            llm_output = response["evaluation"]
+            metrics = json.loads(llm_output.split("EVALUATION:")[1])["metrics"]
+            evaluations[row_id] = metrics
+    
+    return evaluations
             
