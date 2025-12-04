@@ -12,19 +12,27 @@ from scripts.postprocess import parse_cot_llm_results
 
 class Evaluator:
 
-    def __init__(self, dataset: Dataset, results_jsonl_path: str):
+    def __init__(self, prompting_strategy: str, dataset: Dataset, 
+                 results_jsonl_path: str, postprocess_fn: callable):
 
         # inputs
+        self.prompting_strategy = prompting_strategy
+
         self.dataset = dataset
         self.dataset_config = json.load(open(self.dataset.config_file_path, 'r'))
 
         self.results_jsonl_path = results_jsonl_path
-        self.results = parse_cot_llm_results(self.results_jsonl_path)
+        self.results = postprocess_fn(self.results_jsonl_path)
+        assert type(self.results) == dict, \
+            "Postprocess function must return a dictionary of results with index as key and predicted label as value."
 
         # outputs
         self.y_true = []
         self.y_pred = []
-        self.metrics = {"xgboost": None, "xai-guided-cot": None}
+
+        assert prompting_strategy in ["xai-guided-cot", "zero-shot-prompting", "zero-shot-cot"], \
+            f"Prompting strategy {prompting_strategy} not recognized. must be one of 'xai-guided-cot', 'zero-shot-prompting', 'zero-shot-cot'."
+        self.metrics = {"xgboost": None, prompting_strategy: None}
 
     def __load_results(self):
 
@@ -48,6 +56,5 @@ class Evaluator:
                                    "macro_f1_score": f1_score(y_true_xgboost, test_pred_xgboost, 
                                                               average='macro')}
         
-        self.metrics['xai-guided-cot'] = {"macro_f1_score": f1_score(self.y_true, self.y_pred, 
-                                                               average='macro'),
-                                         "log_loss": log_loss(self.y_true, self.y_pred)}
+        self.metrics[self.prompting_strategy] = {"macro_f1_score": f1_score(self.y_true, self.y_pred, average='macro'),
+                                                 "log_loss": log_loss(self.y_true, self.y_pred)}
