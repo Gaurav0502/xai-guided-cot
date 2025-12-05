@@ -36,6 +36,7 @@ class ReasonGenerator:
 
         # outputs
         self.output_file = f"data/batches/{self.dataset.name}_reasoning_batches.jsonl"
+        self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_reasoning_predictions.jsonl"
         self.responses = []
 
     def __create_batch(self, request_id: str, prompt: str):
@@ -128,12 +129,10 @@ class ReasonGenerator:
                 break
         
         if "COMPLETED" in batch_status.status:
-            destination_file_name = f"data/batch_outputs/{self.dataset.name}_reasoning_predictions.jsonl"
 
             client.files.retrieve_content(id=batch_status.output_file_id, 
-                                          output=destination_file_name)
+                                          output=self.destination_file_name)
         
-
 
 
 
