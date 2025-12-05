@@ -43,6 +43,7 @@ class ICLClassifier:
         self.output_file = f"data/batches/{self.dataset.name}_icl_batches.jsonl"
         self.gcp_uri = None
         self.base_output_dir = f"gs://{BUCKET_NAME}/batch_outputs/gemini"
+        self.destination_file_name = None
         self.job = None
     
     def __create_batch(self, request_id: str, prompt: str):
@@ -203,9 +204,9 @@ class ICLClassifier:
                     file_to_download = i.name
 
         if not file_to_download == None:
-            destination_file_name = f"data/batch_outputs/{self.dataset.name}_cot_predictions.jsonl"
+            self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_cot_predictions.jsonl"
             blob = bucket.blob(file_to_download)
-            blob.download_to_filename(destination_file_name)
-            print(f"Downloaded {file_to_download} to {destination_file_name}.")
+            blob.download_to_filename(self.destination_file_name)
+            print(f"Downloaded {file_to_download} to {self.destination_file_name}.")
         else:
             raise ValueError("No predictions.jsonl file found in GCS location.")
