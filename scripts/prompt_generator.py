@@ -1,4 +1,5 @@
 from scripts.configs import Dataset
+import pandas as pd
 
 def zero_shot_prompt_generator(dataset: Dataset, example: str, labels: list[str]) -> str:
 
@@ -111,4 +112,65 @@ def reasoning_generator_prompt(dataset: Dataset, prediction: str, ground_truth: 
             Based on the above information, provide your reasoning and prediction.
 
             NOTE: YOUR FINAL RESULT MUST BE ONE PARAGRAPH OF REASONING THAT LEADS TO PREDICTION WITHIN <REASONING></REASONING> TAGS.
+    """
+def cot_prompt_generator(
+    dataset: Dataset,
+    examples: pd.DataFrame,
+    example_predictions: list,
+    feature_importances: dict,
+    example_shap_values: pd.DataFrame,
+    reasoning: dict,
+    test_example: dict
+) -> str:
+
+    example_strs = []
+    for i, row in examples.iterrows():
+        ex_idx = i
+        ex_features = row.to_dict()
+        ex_prediction = example_predictions[i]
+        ex_shap_values = example_shap_values.loc[ex_idx].to_dict()
+        ex_reasoning = reasoning[ex_idx]
+
+        example_str = f"""
+        Example {i+1}:
+        Feature Values: {ex_features}
+        SHAP Values: {ex_shap_values}
+        Model Prediction: {ex_prediction}
+        Model Reasoning: {ex_reasoning}
+        """
+        example_strs.append(example_str)
+
+    examples_block = "\n".join(example_strs)
+
+    return f"""
+    CONTEXT:
+    You are a classifier for the tabular dataset '{dataset.name}'.
+    Each example has features and a target label called '{dataset.target_col}'.
+    Given the following training examples with their feature values, SHAP values, model predictions, and reasonings, predict the label for the test example.
+    The possible labels are:
+    {dataset.labels}
+
+    TRAINING EXAMPLES:
+
+    Global Feature Importances: {feature_importances}
+
+    {examples_block}
+
+    TEST EXAMPLE:
+    Feature Values: 
+    {test_example}
+
+    Question: What is the predicted value of '{dataset.target_col}' for this test example?
+
+    Think step by step, considering how the SHAP values influenced the model's predictions in the training examples.
+
+    OUTPUT FORMAT:
+
+    Your reasoning process should be detailed and step-by-step, culminating in the final predicted label for the test example.
+
+    FINAL PREDICTION: [YOUR FINAL PREDICTION LABEL]
+
+    NOTE:
+    THE FINAL PREDICTION MUST BE PRECEDED BY "FINAL PREDICTION:" VERBATIM. NO EXTRA TEXT BEYOND THE LABEL.
+    YOUR REASONING MUST BE WITHIN A WORD LIMIT OF 500 WORDS.
     """
