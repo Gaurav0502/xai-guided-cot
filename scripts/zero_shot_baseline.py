@@ -47,21 +47,15 @@ class ZeroShotBaseline:
         return {
             "key": request_id,
             "request": {
-                "contents": [
-                    {
-                        "role": "user", 
-                        "parts": [
-                            {
-                                "text": prompt
-                            }
-                        ]
-                    }
-                ],
+                "contents": [{"role": "user", "parts": [{"text": prompt}]}],
                 "generationConfig": {
                     "temperature": self.model.temperature,
-                    "maxTokens": self.model.max_tokens
-                }
-            }
+                    "maxOutputTokens": self.model.max_tokens,
+                    "thinkingConfig": { 
+                        "thinkingBudget": 128
+                    },
+                },
+            },
         }
 
     def create_batch_prompts(self):
@@ -73,8 +67,8 @@ class ZeroShotBaseline:
         # get the original data splits
         train_df = df.loc[self.dataset_config["train_data_idx"]]
         test_df = df.loc[self.dataset_config["test_data_idx"]]
-        labels = train_df[self.dataset_config["target_col"]].unique().tolist()
-        test_df = test_df.drop(columns=[self.dataset_config["target_col"]], axis=1)
+        labels = train_df[self.dataset.target_col].unique().tolist()
+        test_df = test_df.drop(columns=[self.dataset.target_col], axis=1)
 
         # create test dataset that is masked
         cols = list(test_df.columns)
@@ -173,12 +167,12 @@ class ZeroShotBaseline:
         for i in bucket.list_blobs(prefix=BUCKET_LOCATION):
 
             if not i.name.endswith("predictions.jsonl"):
-                    continue
-                
-            if "pH" in i.name:
-                if i.updated > most_recent_time:
-                    most_recent_time = i.updated
-                    file_to_download = i.name
+                continue
+
+            # if "pH" in i.name:
+            if i.updated > most_recent_time:
+                most_recent_time = i.updated
+                file_to_download = i.name
 
         if not file_to_download == None:
             destination_file_name = f"data/batch_outputs/{self.dataset.name}_baseline_predictions.jsonl"
