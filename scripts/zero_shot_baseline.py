@@ -14,7 +14,7 @@ import time
 from datetime import datetime, timezone
 
 # user defined modules
-from scripts.configs import Dataset, Model
+from scripts.configs import Dataset, Model, COT
 
 # module for env variables
 import os
@@ -25,7 +25,9 @@ BUCKET_NAME = os.getenv("BUCKET_NAME")
 LOCATION = "us-east4"
 
 class ZeroShotBaseline:
-    def __init__(self, dataset: Dataset, model: Model, prompt_gen_fn: callable):
+    def __init__(self, dataset: Dataset, model: Model,
+                 prompt_gen_fn: callable, cot_flag: bool = False, 
+                 cot: COT = None):
 
         # inputs
         self.dataset = dataset
@@ -33,16 +35,25 @@ class ZeroShotBaseline:
 
         self.model = model
 
+        self.cot_flag = cot_flag
+        self.id = "zero-shot" if not cot_flag else "zero-shot-cot"
+        self.cot = cot
+
         self.prompt_gen_fn = prompt_gen_fn
 
         # outputs
         self.batches = None
-        self.output_file = f"data/batches/{self.dataset.name}_baseline_batches.jsonl"
+        self.output_file = f"data/batches/{self.dataset.name}_{self.id}_baseline_batches.jsonl"
         self.gcp_uri = None
         self.base_output_dir = f"gs://{BUCKET_NAME}/batch_outputs/gemini"
         self.job = None
+        self.destination_file_name = None
 
     def __create_batch(self, request_id: str, prompt: str):
+
+        thinking_budget = 0
+        if self.cot_flag and self.cot is not None:
+            thinking_budget = self.cot.thinking_budget
 
         return {
             "key": request_id,
@@ -52,7 +63,7 @@ class ZeroShotBaseline:
                     "temperature": self.model.temperature,
                     "maxOutputTokens": self.model.max_tokens,
                     "thinkingConfig": { 
-                        "thinkingBudget": 128
+                        "thinkingBudget": thinking_budget
                     },
                 },
             },
@@ -70,41 +81,21 @@ class ZeroShotBaseline:
         labels = train_df[self.dataset.target_col].unique().tolist()
         test_df = test_df.drop(columns=[self.dataset.target_col], axis=1)
 
-        # create test dataset that is masked
-        cols = list(test_df.columns)
-        masked_cols = ["x" + str(i) for i in range(len(cols))]
-        col_mask_map = dict(zip(cols, masked_cols))
-        test_df_masked = test_df.rename(columns=col_mask_map)
-
         self.batches = []
         batch_id = 0
 
         # creation of batches
         for idx, row in test_df.iterrows():
 
-            # unmasked row
-            request_id_unmasked = f"baseline_unmasked_batch-{batch_id}"
-            example_features_unmasked = encode(row.to_dict())
-            prompt_unmasked = self.prompt_gen_fn(
+            request_id = f"baseline_{self.id}_batch-{idx}"
+            example_features = encode(row.to_dict())
+            prompt = self.prompt_gen_fn(
                 dataset=self.dataset,
-                example=example_features_unmasked,
+                example=example_features,
                 labels=labels
             )
-            batch_unmasked = self.__create_batch(request_id_unmasked, prompt_unmasked)
-            self.batches.append(batch_unmasked)
-
-            # masked row
-            row_masked = test_df_masked.loc[idx]
-            request_id_masked = f"baseline_masked_batch-{batch_id}"
-            example_features_masked = encode(row_masked.to_dict())
-            prompt_masked = self.prompt_gen_fn(
-                dataset=self.dataset,
-                example=example_features_masked,
-                labels=labels
-            )
-
-            batch_masked = self.__create_batch(request_id_masked, prompt_masked)
-            self.batches.append(batch_masked) 
+            batch = self.__create_batch(request_id, prompt)
+            self.batches.append(batch)
             batch_id += 1
     
     def save_batches_as_jsonl(self):
@@ -115,7 +106,7 @@ class ZeroShotBaseline:
     
     def upload_batches_to_gcs(self):
 
-        destination_blob_name = f"batch_inputs/gemini/{self.dataset.name}_baseline_batches.jsonl"
+        destination_blob_name = f"batch_inputs/gemini/{self.dataset.name}_{self.id}_baseline_batches.jsonl"
         storage_client = storage.Client()
         bucket = storage_client.bucket(BUCKET_NAME)
         blob = bucket.blob(destination_blob_name)
@@ -127,6 +118,8 @@ class ZeroShotBaseline:
     
     def submit_batch_inference_job(self):
 
+        OUTPUT_DIR = f"{self.base_output_dir}/{self.dataset.name}_{self.id}_{int(time.time())}/"
+
         client = genai.Client(vertexai=True, 
                               project=PROJECT_ID, 
                               location=LOCATION)
@@ -134,7 +127,7 @@ class ZeroShotBaseline:
         job = self.job = client.batches.create(
             model=self.model.name,
             src=self.gcp_uri,
-            config=CreateBatchJobConfig(dest=self.base_output_dir),
+            config=CreateBatchJobConfig(dest=OUTPUT_DIR),
         )
 
         print(f"Submitted Job: {job.name}")
@@ -169,16 +162,16 @@ class ZeroShotBaseline:
             if not i.name.endswith("predictions.jsonl"):
                 continue
 
-            # if "pH" in i.name:
-            if i.updated > most_recent_time:
-                most_recent_time = i.updated
-                file_to_download = i.name
+            if f"{self.dataset.name}_{self.id}" in i.name:
+                if i.updated > most_recent_time:
+                    most_recent_time = i.updated
+                    file_to_download = i.name
 
         if not file_to_download == None:
-            destination_file_name = f"data/batch_outputs/{self.dataset.name}_baseline_predictions.jsonl"
+            self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_{self.id}_baseline_predictions.jsonl"
             blob = bucket.blob(file_to_download)
-            blob.download_to_filename(destination_file_name)
-            print(f"Downloaded {file_to_download} to {destination_file_name}.")
+            blob.download_to_filename(self.destination_file_name)
+            print(f"Downloaded {file_to_download} to {self.destination_file_name}.")
         else:
             raise ValueError("No predictions.jsonl file found in GCS location.")
 

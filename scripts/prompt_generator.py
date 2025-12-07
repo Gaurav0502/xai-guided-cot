@@ -17,6 +17,32 @@ def zero_shot_prompt_generator(dataset: Dataset, example: str, labels: list[str]
 
             Note: Answer with exactly one of the allowed label values, nothing else.
     """
+def zero_shot_cot_prompt_generator(dataset: Dataset, example: str, labels: list[str]) -> str:
+
+    return f"""
+            You are a classifier for the tabular dataset '{dataset.name}'.
+            Each example has features and a target label called '{dataset.target_col}'.
+            Given the following feature values for one example, predict the label.
+            Return EXACTLY one of the following labels:
+            {", ".join(map(str, labels))}
+
+            Here are the feature values:
+            {example}
+
+            Question: What is the predicted value of '{dataset.target_col}' for this example?
+
+            Think step by step, considering how the SHAP values influenced the model's predictions in the training examples.
+
+            OUTPUT FORMAT:
+
+            Your reasoning process should be detailed and step-by-step, culminating in the final predicted label for the test example.
+
+            FINAL PREDICTION: [YOUR FINAL PREDICTION LABEL]
+
+            NOTE:
+            THE FINAL PREDICTION MUST BE PRECEDED BY "FINAL PREDICTION:" VERBATIM. NO EXTRA TEXT BEYOND THE LABEL.
+            YOUR REASONING MUST BE WITHIN A WORD LIMIT OF 500 WORDS.
+    """
 
 def objective_judge_prompt_generator(
     dataset: Dataset,
