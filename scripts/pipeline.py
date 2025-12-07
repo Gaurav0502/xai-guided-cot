@@ -12,10 +12,13 @@ from sklearn.tree import DecisionTreeClassifier
 
 # user-defined modules
 from scripts.configs import (Dataset, Model, COT)
-from scripts.postprocess import (parse_reasoning_llm_results,
+from scripts.postprocess import (parse_baseline_llm_results, 
+                                 parse_reasoning_llm_results,
                                  parse_objective_judge_results,
+                                 parse_zero_shot_cot_llm_results,
                                  parse_cot_llm_results)
 from scripts.prompt_generator import (zero_shot_prompt_generator, 
+                                      zero_shot_cot_prompt_generator,
                                       reasoning_generator_prompt,
                                       objective_judge_prompt_generator)
 
@@ -87,9 +90,65 @@ class Pipeline:
         self.reasoning_gen_model = reasoning_gen_model
         self.objective_judge_model = objective_judge_model
         self.cot_model = cot_model
+    
+    def _run_baseline_eval(
+            self, baseline_obj, predictions_key, 
+            metrics_key, postprocess_fn: callable):
 
-    def compute_baselines(self):
-        pass
+        baseline_obj.create_batch_prompts()
+        baseline_obj.save_batches_as_jsonl()
+        baseline_obj.upload_batches_to_gcs()
+        baseline_obj.submit_batch_inference_job()
+        baseline_obj.download_job_outputs_from_gcs()
+
+        strategy = "zero_shot_cot" if baseline_obj.cot_flag else "zero_shot_baseline"
+        eval = Evaluator(
+            prompting_strategy=strategy,
+            dataset=self.dataset,
+            results_jsonl_path=baseline_obj.destination_file_name,
+            postprocess_fn=postprocess_fn
+        )
+        eval.evaluate()
+        return {
+            predictions_key: eval.results,
+            metrics_key: eval.metrics
+        }
+
+    def compute_baselines(self, cot_ablation: bool = False):
+
+        results = {}
+
+        baseline = ZeroShotBaseline(
+            dataset=self.dataset, 
+            model=self.cot_model, 
+            prompt_gen_fn=zero_shot_cot_prompt_generator
+        )
+        results.update(self._run_baseline_eval(
+            baseline, "baseline_predictions", 
+            "baseline_metrics",
+            postprocess_fn=parse_baseline_llm_results
+        ))
+
+        if cot_ablation:
+            cot_config = COT(
+                num_examples_per_agent=10,
+                reasoning={},
+                thinking_budget=1000
+            )
+            cot_ablation = ZeroShotBaseline(
+                dataset=self.dataset, 
+                model=self.cot_model, 
+                prompt_gen_fn=zero_shot_cot_prompt_generator,
+                cot_flag=True,
+                cot=cot_config
+            )
+            results.update(self._run_baseline_eval(
+                cot_ablation, "baseline_ablation_predictions", 
+                "baseline_ablation_metrics",
+                postprocess_fn=parse_zero_shot_cot_llm_results
+            ))
+
+        self.results = self.results | results
 
     def run(self, 
             baseline: bool = False,
@@ -163,9 +222,9 @@ class Pipeline:
         )
         eval.evaluate()
         results["cot_predictions"] = eval.results
-        results["metrics"] = eval.metrics
+        results["cot_metrics"] = eval.metrics
 
-        self.results = results
+        self.results = self.results | results
 
         return results
 
