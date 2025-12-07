@@ -1,7 +1,8 @@
 from scripts.constants import VALID_PROVIDERS, VALID_MODELS
 from typing import Callable, Dict, Any
 from pydantic import (BaseModel, Field, StrictStr, 
-                      StrictInt, field_validator)
+                      StrictInt, StrictFloat,
+                      field_validator)
 
 class Dataset(BaseModel):
     name: StrictStr
@@ -27,7 +28,7 @@ class Dataset(BaseModel):
 class Model(BaseModel):
     provider: StrictStr
     name: StrictStr
-    temperature: StrictInt
+    temperature: StrictFloat
     max_tokens: StrictInt
 
     model_config = {
