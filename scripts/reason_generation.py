@@ -121,17 +121,19 @@ class ReasonGenerator:
         batch_status = None
 
         while batch.status not in ["COMPLETED", "FAILED"]:
-            time.sleep(10)
+            time.sleep(60)
             batch_status = client.batches.get_batch(batch.id)
-            print(f"Current Status: {batch_status.status}")
+            print(f"[REASON GENERATION] Current Status: {batch_status.status}")
             if "COMPLETED" in batch_status.status:
-                print("Batch completed successfully.")
+                print("[REASON GENERATION] Batch completed successfully.")
                 break
         
         if "COMPLETED" in batch_status.status:
 
             client.files.retrieve_content(id=batch_status.output_file_id, 
                                           output=self.destination_file_name)
+            
+            print(f"[REASON GENERATION] Batch outputs downloaded to {self.destination_file_name}")
         
 
 

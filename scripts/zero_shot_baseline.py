@@ -114,7 +114,7 @@ class ZeroShotBaseline:
 
         self.gcp_uri = f"gs://{BUCKET_NAME}/{destination_blob_name}"
 
-        print(f"File {self.output_file} uploaded to {destination_blob_name}")
+        print(f"[GCS CLIENT] File {self.output_file} uploaded to {destination_blob_name}")
     
     def submit_batch_inference_job(self):
 
@@ -130,8 +130,8 @@ class ZeroShotBaseline:
             config=CreateBatchJobConfig(dest=OUTPUT_DIR),
         )
 
-        print(f"Submitted Job: {job.name}")
-        print(f"Output base dir: {self.base_output_dir}")
+        print(f"[{self.id.upper()}] Submitted Job: {job.name}")
+        print(f"[{self.id.upper()}] Output base dir: {self.base_output_dir}")
     
         completed_states = {
             JobState.JOB_STATE_SUCCEEDED,
@@ -143,9 +143,9 @@ class ZeroShotBaseline:
         while job.state not in completed_states:
             time.sleep(30)
             job = client.batches.get(name=job.name)
-            print(f"{job.name} state: {job.state}")
+            print(f"[{self.id.upper()}] {job.name} state: {job.state}")
 
-        print(f"Final state: {job.state}")
+        print(f"[{self.id.upper()}] Final state: {job.state}")
     
     def download_job_outputs_from_gcs(self):
 
@@ -171,7 +171,7 @@ class ZeroShotBaseline:
             self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_{self.id}_baseline_predictions.jsonl"
             blob = bucket.blob(file_to_download)
             blob.download_to_filename(self.destination_file_name)
-            print(f"Downloaded {file_to_download} to {self.destination_file_name}.")
+            print(f"[GCS CLIENT] Downloaded {file_to_download} to {self.destination_file_name}.")
         else:
             raise ValueError("No predictions.jsonl file found in GCS location.")
 
