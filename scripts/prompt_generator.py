@@ -91,7 +91,7 @@ You must first output the full **Chain of Thought (CoT)**, explaining your scori
 
 [Your detailed Chain of Thought goes here, incorporating all justification for the scores...]
 
-Evaluation:
+EVALUATION:
 {{
     "metrics": {{
         "faithfulness": [1.00 to 5.00 in 0.25 increments],
@@ -104,7 +104,7 @@ THE JSON OBJECT MUST BE PRECEDED BY "EVALUATION:" VERBATIM. NO EXTRA TEXT BEYOND
 
 """
 
-def reasoning_generator_prompt(dataset: Dataset, prediction: str, ground_truth: str, 
+def reasoning_prompt_generator(dataset: Dataset, prediction: str, ground_truth: str, 
                                ft_raw_vals: str, shap_vals: str, feature_importances: str) -> str:
     
     return f"""
@@ -137,7 +137,18 @@ def reasoning_generator_prompt(dataset: Dataset, prediction: str, ground_truth: 
 
             Based on the above information, provide your reasoning and prediction.
 
-            NOTE: YOUR FINAL RESULT MUST BE ONE PARAGRAPH OF REASONING THAT LEADS TO PREDICTION WITHIN <REASONING></REASONING> TAGS.
+            OUTPUT FORMAT:
+
+            <think>YOUR DETAILED REASONING PROCESS HERE</think>
+            <REASONING>YOUR FINAL REASONING PARAGRAPH HERE</REASONING>
+
+            NOTE: 
+            1. YOUR FINAL RESULT MUST BE ONE PARAGRAPH OF REASONING THAT LEADS TO PREDICTION WITHIN <REASONING></REASONING> TAGS.
+            2. STICK TO ONLY ENGLISH LANGUAGE. NO OTHER LANGUAGES MUST BE USED!
+            3. AFTER THE CLOSING </REASONING> TAG, NO ADDITIONAL TEXT OR MARKDOWN FENCES MUST BE PROVIDED.
+            4. YOUR THINKING MUST BE WITHIN A WORD LIMIT OF 500 WORDS.
+            5. DO NOT MIX UP THE TAGS. STICK TO OUTPUT FORMAT STRICTLY.
+
     """
 def cot_prompt_generator(
     dataset: Dataset,
