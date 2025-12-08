@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 
 # modules used for evaluation
-from sklearn.metrics import f1_score, log_loss
+from sklearn.metrics import f1_score, accuracy_score
 
 # user-defined modules
 from scripts.configs import Dataset
@@ -52,9 +52,9 @@ class Evaluator:
 
         test_pred_xgboost = self.dataset_config["test_predictions"]
         y_true_xgboost = self.df.loc[self.dataset_config["test_data_idx"], self.dataset.target_col].tolist()
-        self.metrics['xgboost'] = {"log_loss": log_loss(y_true_xgboost, test_pred_xgboost),
+        self.metrics['xgboost'] = {"accuracy": accuracy_score(y_true_xgboost, test_pred_xgboost),
                                    "macro_f1_score": f1_score(y_true_xgboost, test_pred_xgboost, 
                                                               average='macro')}
         
         self.metrics[self.prompting_strategy] = {"macro_f1_score": f1_score(self.y_true, self.y_pred, average='macro'),
-                                                 "log_loss": log_loss(self.y_true, self.y_pred)}
+                                                 "accuracy": accuracy_score(self.y_true, self.y_pred)}
