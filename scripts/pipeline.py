@@ -19,8 +19,9 @@ from scripts.postprocess import (parse_baseline_llm_results,
                                  parse_cot_llm_results)
 from scripts.prompt_generator import (zero_shot_prompt_generator, 
                                       zero_shot_cot_prompt_generator,
-                                      reasoning_generator_prompt,
-                                      objective_judge_prompt_generator)
+                                      reasoning_prompt_generator,
+                                      objective_judge_prompt_generator,
+                                      cot_prompt_generator)
 
 from scripts.explanable_tree_model import ExplainableModel
 from scripts.zero_shot_baseline import ZeroShotBaseline
@@ -90,10 +91,10 @@ class Pipeline:
         self.reasoning_gen_model = reasoning_gen_model
         self.objective_judge_model = objective_judge_model
         self.cot_model = cot_model
+        self.results = {}
     
     def _run_baseline_eval(
-            self, baseline_obj, predictions_key, 
-            metrics_key, postprocess_fn: callable):
+            self, baseline_obj, postprocess_fn: callable):
 
         baseline_obj.create_batch_prompts()
         baseline_obj.save_batches_as_jsonl()
@@ -101,7 +102,7 @@ class Pipeline:
         baseline_obj.submit_batch_inference_job()
         baseline_obj.download_job_outputs_from_gcs()
 
-        strategy = "zero_shot_cot" if baseline_obj.cot_flag else "zero_shot_baseline"
+        strategy = "zero-shot-cot" if baseline_obj.cot_flag else "zero-shot-prompting"
         eval = Evaluator(
             prompting_strategy=strategy,
             dataset=self.dataset,
@@ -109,25 +110,18 @@ class Pipeline:
             postprocess_fn=postprocess_fn
         )
         eval.evaluate()
-        return {
-            predictions_key: eval.results,
-            metrics_key: eval.metrics
-        }
+        return eval.metrics
 
     def compute_baselines(self, cot_ablation: bool = False):
-
-        results = {}
 
         baseline = ZeroShotBaseline(
             dataset=self.dataset, 
             model=self.cot_model, 
-            prompt_gen_fn=zero_shot_cot_prompt_generator
+            prompt_gen_fn=zero_shot_prompt_generator
         )
-        results.update(self._run_baseline_eval(
-            baseline, "baseline_predictions", 
-            "baseline_metrics",
-            postprocess_fn=parse_baseline_llm_results
-        ))
+        self.results["zero_shot_baseline"] = self._run_baseline_eval(
+            baseline, postprocess_fn=parse_baseline_llm_results
+        )
 
         if cot_ablation:
             cot_config = COT(
@@ -142,19 +136,14 @@ class Pipeline:
                 cot_flag=True,
                 cot=cot_config
             )
-            results.update(self._run_baseline_eval(
-                cot_ablation, "baseline_ablation_predictions", 
-                "baseline_ablation_metrics",
-                postprocess_fn=parse_zero_shot_cot_llm_results
-            ))
-
-        self.results = self.results | results
+            self.results["zero_shot_cot_ablation"] = self._run_baseline_eval(
+                cot_ablation, postprocess_fn=parse_zero_shot_cot_llm_results
+            )
 
     def run(self, 
             baseline: bool = False,
-            objective_judge: bool = False):
-        
-        results = {}
+            objective_judge: bool = False,
+            cot_ablation: bool = False):
 
         # xai model training
         # and tuning
@@ -166,13 +155,14 @@ class Pipeline:
 
         # baseline computations
         if baseline:
-            self.compute_baselines()
+            self.compute_baselines(cot_ablation)
+            print("[PIPELINE] Baseline metrics computed.")
         
         # reasoning generation
         reason_generator = ReasonGenerator(
             dataset=self.dataset,
             model=self.reasoning_gen_model,
-            prompt_gen_fn=reasoning_generator_prompt
+            prompt_gen_fn=reasoning_prompt_generator
         )
         reason_generator.create_batch_prompts()
         reason_generator.save_batches_as_jsonl()
@@ -180,7 +170,8 @@ class Pipeline:
         reasoning = parse_reasoning_llm_results(
             results_jsonl_path=reason_generator.destination_file_name
         )
-        results["reasoning"] = reasoning
+        self.results["reasoning"] = reasoning
+        print("[PIPELINE] Reasoning generation completed.")
 
         # llm as judge
         if objective_judge:
@@ -191,9 +182,10 @@ class Pipeline:
             )
             judge.create_batch_prompts(reasoning=reasoning)
             judge.submit_batch()
-            results["llm_as_judge"] = parse_objective_judge_results(
+            self.results["llm_as_judge"] = parse_objective_judge_results(
                 results_jsonl_path=judge.destination_file_name
             )
+            print("[PIPELINE] Objective judge evaluation completed.")
         
         # cot
         cot_config = COT(
@@ -205,13 +197,14 @@ class Pipeline:
             dataset=self.dataset,
             model=self.cot_model,
             cot=cot_config,
-            prompt_gen_fn=reasoning_generator_prompt
+            prompt_gen_fn=cot_prompt_generator
         )
-        icl_classifier.create_batch_prompts(reasoning=reasoning)
-        icl_classifier.submit_batch()
+        icl_classifier.create_batch_prompts()
         icl_classifier.save_batches_as_jsonl()
+        icl_classifier.upload_batches_to_gcs()
         icl_classifier.submit_batch_inference_job()
         icl_classifier.download_job_outputs_from_gcs()
+        print("[PIPELINE] ICL classification with COT completed.")
 
         # evaluation
         eval = Evaluator(
@@ -221,12 +214,9 @@ class Pipeline:
             postprocess_fn=parse_cot_llm_results
         )
         eval.evaluate()
-        results["cot_predictions"] = eval.results
-        results["cot_metrics"] = eval.metrics
-
-        self.results = self.results | results
-
-        return results
+        self.results["cot"] = eval.metrics
+        print("[PIPELINE] Evaluation of COT predictions completed.")
+        print("[PIPELINE] Pipeline run completed.")
 
 
 

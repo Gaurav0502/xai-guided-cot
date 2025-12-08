@@ -36,7 +36,7 @@ class ObjectiveJudge:
         self.batches = []
         self.evals = []
         self.batch_id = None
-        self.filepath = f"data/batch_outputs/{self.dataset.name}_objective_judge_evaluations.jsonl"
+        self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_objective_judge_evaluations.jsonl"
     
     def __create_batch(self, request_id: str, prompt: str) -> Request:
 
@@ -125,14 +125,14 @@ class ObjectiveJudge:
                case "expired":
                     result_types["expired"] += 1
         
-        print("Batch result types:", result_types)
+        print("[OBJECTIVE JUDGE] Batch result types:", result_types)
 
     def __save_to_jsonl(self):
 
-        with open(self.filepath, "w") as f:
+        with open(self.destination_file_name, "w") as f:
             for eval in self.evals:
                 f.write(json.dumps(eval) + "\n")
-        print(f"Saved evaluations to {self.filepath}")
+        print(f"[OBJECTIVE JUDGE] Saved evaluations to {self.destination_file_name}")
 
     def submit_batch(self):
 
@@ -141,7 +141,7 @@ class ObjectiveJudge:
             requests=self.batches
         )
 
-        print("Submitted batch with id:", batch_info.id)
+        print("[OBJECTIVE JUDGE] Submitted batch with id:", batch_info.id)
         self.batch_id = batch_info.id
 
         message_batch = None
@@ -152,10 +152,10 @@ class ObjectiveJudge:
             if message_batch.processing_status == "ended":
                 break
 
-            print(f"Batch {self.batch_id} is still processing...")
+            print(f"[OBJECTIVE JUDGE] Batch {self.batch_id} is still processing...")
             time.sleep(60)
 
-        print(f"Batch {self.batch_id} has completed processing.")
+        print(f"[OBJECTIVE JUDGE] Batch {self.batch_id} has completed processing.")
 
         self.__retrieve_batch_results(client)
         self.__save_to_jsonl()

@@ -148,7 +148,7 @@ class ICLClassifier:
 
         self.gcp_uri = f"gs://{BUCKET_NAME}/{destination_blob_name}"
 
-        print(f"File {self.output_file} uploaded to {destination_blob_name}")
+        print(f"[GCS CLIENT] File {self.output_file} uploaded to {destination_blob_name}")
     
     def submit_batch_inference_job(self):
 
@@ -166,8 +166,8 @@ class ICLClassifier:
             ),
         )
 
-        print(f"Submitted Job: {job.name}")
-        print(f"Output base dir: {OUTPUT_DIR}")
+        print(f"[ICL CLASSIFIER] Submitted Job: {job.name}")
+        print(f"[ICL CLASSIFIER] Output base dir: {OUTPUT_DIR}")
     
         completed_states = {
             JobState.JOB_STATE_SUCCEEDED,
@@ -177,11 +177,11 @@ class ICLClassifier:
         }
 
         while job.state not in completed_states:
-            time.sleep(30)
+            time.sleep(60)
             job = client.batches.get(name=job.name)
-            print(f"{job.name} state: {job.state}")
+            print(f"[ICL CLASSIFIER] {job.name} state: {job.state}")
 
-        print(f"Final state: {job.state}")
+        print(f"[ICL CLASSIFIER] Final state: {job.state}")
 
     def download_job_outputs_from_gcs(self):
 
@@ -207,6 +207,6 @@ class ICLClassifier:
             self.destination_file_name = f"data/batch_outputs/{self.dataset.name}_cot_predictions.jsonl"
             blob = bucket.blob(file_to_download)
             blob.download_to_filename(self.destination_file_name)
-            print(f"Downloaded {file_to_download} to {self.destination_file_name}.")
+            print(f"[GCS CLIENT] Downloaded {file_to_download} to {self.destination_file_name}.")
         else:
             raise ValueError("No predictions.jsonl file found in GCS location.")

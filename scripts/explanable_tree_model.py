@@ -25,10 +25,8 @@ WANDB_PROJECT_NAME = os.getenv("WANDB_PROJECT_NAME")
 # module used for explainability
 import shap
 
-# directories
-SHAP_DATA_DIR = "data/shap_values"
-DATASET_CONFIG_DIR = "data/dataset_config"
-
+# to suppress wandb info logs
+os.environ["WANDB_SILENT"] = "true"
 
 class ExplainableModel:
     def __init__(self, dataset: Dataset, estimator: xgb.XGBClassifier | DecisionTreeClassifier):
@@ -45,6 +43,9 @@ class ExplainableModel:
         
         self.df = self.preprocess(pd.read_csv(self.dataset_path))
         self.target_column = dataset.target_col
+
+        self.SHAP_DATA_DIR = dataset.shap_vals_path
+        self.DATASET_CONFIG_DIR = dataset.config_file_path
 
         self.X = self.df.drop(columns=[self.target_column])
         self.y = self.df[self.target_column]
@@ -96,7 +97,7 @@ class ExplainableModel:
         
         self.sweep_id = wandb.sweep(sweep_config, project=self.project_name)
         wandb.agent(self.sweep_id, function=self.__train_sweep, 
-                    count=sweep_config.get("count", 5))
+                    count=sweep_config.get("count", 10))
     
     def __fetch_best_params(self):
         api = wandb.Api()
@@ -122,41 +123,34 @@ class ExplainableModel:
             columns=list(self.X_train.columns)
         )
 
-        shap_vals_path = os.path.join(SHAP_DATA_DIR, 
-                                      os.path.basename(self.dataset_path).replace('.csv', 
-                                                                                  '_shap.csv'))
         df_shap.index = self.X_train.index
         df_shap.index.name = "idx"
-        df_shap.to_csv(shap_vals_path, index=True)
+        df_shap.to_csv(self.SHAP_DATA_DIR, index=True)
 
         log = {
             "dataset_path": self.dataset_path,
-            "shap_values_path": shap_vals_path,
+            "shap_values_path": self.SHAP_DATA_DIR,
             "feature_importances": feature_imps,
             "train_data_idx": self.X_train.index.tolist(),
             "test_data_idx": self.X_test.index.tolist(),
             "train_predictions": self.train_pred,
             "test_predictions": self.test_pred
         }
-
-        dataset_config_path = os.path.join(DATASET_CONFIG_DIR, 
-                                           os.path.basename(self.dataset_path).replace('.csv', 
-                                                                                       '_config.json'))
         
-        with open(dataset_config_path, 'w') as f:
+        with open(self.DATASET_CONFIG_DIR, 'w') as f:
             json.dump(log, f, indent=4)
         
-        print(f"Logged explanation data to {dataset_config_path}")
+        print(f"[XAI-MODEL] Logged explanation data to {self.DATASET_CONFIG_DIR}")
 
     def explain(self, params_grid_file: str):
         
         self.__tune(params_grid_file=params_grid_file)
-        print("Completed hyperparameter tuning.")
+        print("[XAI-MODEL] Completed hyperparameter tuning.")
         self.__train_model()
-        print("Trained model with best hyperparameters.")
+        print("[XAI-MODEL] Trained model with best hyperparameters.")
         self.feature_importances = self.model.feature_importances_
 
         explainer = shap.TreeExplainer(self.model)
         self.shap_values = explainer.shap_values(self.X_train)
         self.__log()
-        print("Explanation process completed.")
+        print("[XAI-MODEL] Explanation process completed.")
