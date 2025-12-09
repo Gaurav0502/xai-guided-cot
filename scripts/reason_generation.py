@@ -1,4 +1,4 @@
-# module for data handling 
+# module for data handling
 from xmlrpc import client
 import pandas as pd
 import numpy as np
@@ -24,7 +24,14 @@ dotenv.load_dotenv()
 TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY")
 
 class ReasonGenerator:
-    def __init__(self, dataset: Dataset, model: Model, prompt_gen_fn: callable):
+
+    def __init__(
+        self,
+        dataset: Dataset,
+        model: Model,
+        prompt_gen_fn: callable,
+        random_sample_count: int = None,
+    ):
 
         # inputs
         self.dataset = dataset
@@ -55,8 +62,12 @@ class ReasonGenerator:
         }
 
     def create_batch_prompts(self):
-        
-        unique_row_idx = get_diverse_examples(self.dataset.shap_vals_path)
+        if self.random_sample_count is not None:
+            train_idx = self.dataset_config["train_data_idx"]
+            unique_row_idx = list(np.random.choice(train_idx, size=self.random_sample_count, replace=False))
+            print(f"Randomly sampled {len(unique_row_idx)} examples.")
+        else:
+            unique_row_idx = get_diverse_examples(self.dataset.shap_vals_path)
 
         feature_imps = self.dataset_config["feature_importances"]
         feature_imps = encode(feature_imps)
@@ -102,20 +113,20 @@ class ReasonGenerator:
             )
             self.batches.append(batch)
             batch_id += 1
-    
+
     def save_batches_as_jsonl(self):
 
         with open(self.output_file, "w") as f:
             for batch in self.batches:
                 f.write(json.dumps(batch) + "\n") 
-    
+
     def submit_batches(self):
 
         client = Together(api_key=TOGETHER_API_KEY)
 
         file_resp = client.files.upload(file=self.output_file, 
                                         purpose="batch-api")
-        
+
         batch = client.batches.create_batch(file_id=file_resp.id,
                                             endpoint="/v1/chat/completions" )
         batch_status = None
@@ -127,16 +138,10 @@ class ReasonGenerator:
             if "COMPLETED" in batch_status.status:
                 print("[REASON GENERATION] Batch completed successfully.")
                 break
-        
+
         if "COMPLETED" in batch_status.status:
 
             client.files.retrieve_content(id=batch_status.output_file_id, 
                                           output=self.destination_file_name)
-            
+
             print(f"[REASON GENERATION] Batch outputs downloaded to {self.destination_file_name}")
-        
-
-
-
-
-

@@ -75,24 +75,24 @@ class Pipeline:
                "cot_model must be a scripts.configs.Model instance\n"
                 f"Got: {type(cot_model).__name__}"
             )
-        
+
         self.dataset = dataset
         self.explanable_model = explanable_model
         cls_name = self.explanable_model.__class__.__name__
         if cls_name not in SUPPORTED_EXPLAINABLE_MODELS:
-           allowed = ", ".join(sorted(SUPPORTED_EXPLAINABLE_MODELS))
-           raise ValueError(
+            allowed = ", ".join(sorted(SUPPORTED_EXPLAINABLE_MODELS))
+            raise ValueError(
                f"Unsupported model class: {cls_name}\n"
                 f"Allowed: {allowed}"
             )
-        
+
         self.tune_config_file = tune_config_file
 
         self.reasoning_gen_model = reasoning_gen_model
         self.objective_judge_model = objective_judge_model
         self.cot_model = cot_model
         self.results = {}
-    
+
     def _run_baseline_eval(
             self, baseline_obj, postprocess_fn: callable):
 
@@ -140,10 +140,13 @@ class Pipeline:
                 cot_ablation, postprocess_fn=parse_zero_shot_cot_llm_results
             )
 
-    def run(self, 
-            baseline: bool = False,
-            objective_judge: bool = False,
-            cot_ablation: bool = False):
+    def run(
+        self,
+        baseline: bool = False,
+        objective_judge: bool = False,
+        cot_ablation: bool = False,
+        random_sample_count: int = None,
+    ):
 
         # xai model training
         # and tuning
@@ -157,12 +160,13 @@ class Pipeline:
         if baseline:
             self.compute_baselines(cot_ablation)
             print("[PIPELINE] Baseline metrics computed.")
-        
+
         # reasoning generation
         reason_generator = ReasonGenerator(
             dataset=self.dataset,
             model=self.reasoning_gen_model,
-            prompt_gen_fn=reasoning_prompt_generator
+            prompt_gen_fn=reasoning_prompt_generator,
+            random_sample_count=random_sample_count,
         )
         reason_generator.create_batch_prompts()
         reason_generator.save_batches_as_jsonl()
@@ -186,7 +190,7 @@ class Pipeline:
                 results_jsonl_path=judge.destination_file_name
             )
             print("[PIPELINE] Objective judge evaluation completed.")
-        
+
         # cot
         cot_config = COT(
             num_examples_per_agent=10,
@@ -217,7 +221,3 @@ class Pipeline:
         self.results["cot"] = eval.metrics
         print("[PIPELINE] Evaluation of COT predictions completed.")
         print("[PIPELINE] Pipeline run completed.")
-
-
-
-        
