@@ -13,3 +13,5 @@ rough.ipynb
 *.csv
 *.xlsx
 .DS_Store
+
+results/
