@@ -146,6 +146,8 @@ class Pipeline:
         objective_judge: bool = False,
         cot_ablation: bool = False,
         random_sample_count: int = None,
+        num_examples_per_agent: int = 10,
+        thinking_budget: int = 1000,
     ):
 
         # xai model training
@@ -175,6 +177,7 @@ class Pipeline:
             results_jsonl_path=reason_generator.destination_file_name
         )
         self.results["reasoning"] = reasoning
+        self.results["num_diverse_examples"] = len(reasoning)
         print("[PIPELINE] Reasoning generation completed.")
 
         # llm as judge
@@ -191,11 +194,13 @@ class Pipeline:
             )
             print("[PIPELINE] Objective judge evaluation completed.")
 
+        if num_examples_per_agent == -1:
+            num_examples_per_agent = len(reasoning)
         # cot
         cot_config = COT(
-            num_examples_per_agent=10,
+            num_examples_per_agent=num_examples_per_agent,
             reasoning=reasoning,
-            thinking_budget=1000
+            thinking_budget=thinking_budget
         )
         icl_classifier = ICLClassifier(
             dataset=self.dataset,
