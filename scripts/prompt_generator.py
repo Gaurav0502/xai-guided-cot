@@ -31,7 +31,7 @@ def zero_shot_cot_prompt_generator(dataset: Dataset, example: str, labels: list[
 
             Question: What is the predicted value of '{dataset.target_col}' for this example?
 
-            Think step by step, considering how the SHAP values influenced the model's predictions in the training examples.
+            Think step by step.
 
             OUTPUT FORMAT:
 
@@ -40,8 +40,9 @@ def zero_shot_cot_prompt_generator(dataset: Dataset, example: str, labels: list[
             FINAL PREDICTION: [YOUR FINAL PREDICTION LABEL]
 
             NOTE:
-            THE FINAL PREDICTION MUST BE PRECEDED BY "FINAL PREDICTION:" VERBATIM. NO EXTRA TEXT BEYOND THE LABEL.
-            YOUR REASONING MUST BE WITHIN A WORD LIMIT OF 500 WORDS.
+            - THE FINAL PREDICTION MUST BE PRECEDED BY "FINAL PREDICTION:" VERBATIM. NO EXTRA TEXT BEYOND THE LABEL.
+            - YOUR REASONING MUST BE WITHIN A WORD LIMIT OF 500 WORDS.
+            - IF YOU ARE NOT CONFIDENT, PLEASE PROVIDE YOUR BEST GUESS FROM THE ALLOWED LABELS (ONLY A NUMBER NOT TEXT HERE!).
     """
 
 def objective_judge_prompt_generator(
@@ -87,9 +88,13 @@ You must perform a detailed analysis.
 3. **Coherence:** Is the reasoning grammatically sound, well-structured, and easy for a non-expert to understand?
 
 --- OUTPUT FORMAT ---
-You must first output the full **Chain of Thought (CoT)**, explaining your scoring decisions. Immediately after your CoT, provide the structured JSON metrics block. **DO NOT generate any text, commentary, or markdown fences after the final closing brace of the JSON object.**
+You must give your output in following format:
 
-[Your detailed Chain of Thought goes here, incorporating all justification for the scores...]
+CHAIN OF THOUGHT:
+
+FAITHFULNESS ANALYSIS: <YOUR DETAILED ANALYSIS HERE IN ONE PARAGRAPH>
+CONSISTENCY ANALYSIS: <YOUR DETAILED ANALYSIS HERE IN ONE PARAGRAPH>
+COHERENCE ANALYSIS: <YOUR DETAILED ANALYSIS HERE IN ONE PARAGRAPH
 
 EVALUATION:
 {{
@@ -100,7 +105,11 @@ EVALUATION:
     }}
 }}
 
-THE JSON OBJECT MUST BE PRECEDED BY "EVALUATION:" VERBATIM. NO EXTRA TEXT BEYOND THE JSON OBJECT.
+NOTE:
+- YOUR OUTPUT MUST END WITH THE JSON OBJECT AS SPECIFIED.
+- THE JSON OBJECT MUST BE PRECEDED BY "EVALUATION:" VERBATIM. NO EXTRA TEXT BEYOND THE JSON OBJECT.
+- YOUR THOUGHT PROCESS MUST BE WITHIN A WORD LIMIT OF 800 WORDS.
+- ALL SCORES MUST BE PROVIDED INSIDE THE JSON OBJECT ONLY. FOLLOW THE OUTPUT FORMAT STRICTLY. 
 
 """
 
