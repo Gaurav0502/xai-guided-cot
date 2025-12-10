@@ -7,48 +7,25 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 
-def preprocess_world_air_quality(df: pd.DataFrame) -> pd.DataFrame:
-    # Keep only pollutant values (X) + AQI category (Y)
-    keep_cols = [
-        "AQI Category",
-        "CO AQI Value",
-        "Ozone AQI Value",
-        "NO2 AQI Value",
-        "PM2.5 AQI Value",
-    ]
-    df = df[keep_cols].copy()
+def preprocess_loan(df: pd.DataFrame) -> pd.DataFrame:
 
-    df.rename(columns={"AQI Category": "AQI_Category"}, inplace=True)
-    aqi_map = {
-        "Good": 0,
-        "Moderate": 1,
-        "Unhealthy for Sensitive Groups": 2,
-        "Unhealthy": 3,
-        "Very Unhealthy": 4,
-    }
-    df["AQI_Category"] = df["AQI_Category"].map(aqi_map)
+    df = df.drop(columns=["loan_id"])
 
-    # Convert everything to numeric
-    df = df.apply(pd.to_numeric, errors="coerce")
-
-    # Drop rows with missing values
+    df = df.dropna()
     before = len(df)
     df = df.dropna()
     after = len(df)
     dropped = before - after
+    print(f"[LOAN] Dropped {dropped} rows due to NaNs (kept {after} rows).")
 
-    print(f"[AQI] Dropped {dropped} rows due to NaNs (kept {after} rows).")
-
+    categorical_cols = [' education', ' self_employed']
+    df = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+    df = df.replace({True: 1, False: 0})
+    df = df.replace({' Approved': 1, ' Rejected': 0})
+    df = df.astype('int64')
     return df
 
-
-def preprocess_wine_quality(df: pd.DataFrame) -> pd.DataFrame:
-    # Drop ID column
-    df = df.drop(columns=["Id"])
-    unique_scores = sorted(df["quality"].unique())
-    mapping = {score: idx for idx, score in enumerate(unique_scores)}
-    df["quality"] = df["quality"].map(mapping)
-    print("[Wine] Mapped quality scores:", mapping)
+def preprocess_diabetes(df: pd.DataFrame) -> pd.DataFrame:
 
     # Convert everything to numeric
     df = df.apply(pd.to_numeric, errors="coerce")
