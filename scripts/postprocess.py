@@ -28,7 +28,11 @@ def parse_baseline_llm_results(
                 llm_output = response["response"]["candidates"][0]["content"]["parts"][0]["text"]
                 prediction = llm_output.strip()
                 predictions[row_id] = prediction
-                predictions[row_id] = int(re.search(r'\d+', predictions[row_id]).group()) 
+                num = re.search(r'\d+', predictions[row_id])
+                if num != None:
+                    predictions[row_id] = int(num.group())
+                else:
+                    predictions[row_id] = -1
             else:
                 interrupted_requests += 1
 
@@ -45,7 +49,11 @@ def parse_reasoning_llm_results(results_jsonl_path: str) -> Dict[int, str]:
             response = json.loads(line.strip())
             row_id = int(response["custom_id"].split("-")[1])
             llm_output = response["response"]["body"]["choices"][0]["message"]["content"]
-            reasoning[row_id] = str(llm_output.split('</think>')[1].split('<REASONING>')[1].replace('</REASONING>', '').strip())
+
+            try:
+                reasoning[row_id] = str(llm_output.split('</think>')[1].split('<REASONING>')[1].replace('</REASONING>', '').strip())
+            except Exception as e:
+                continue
     
     return reasoning
 
@@ -76,7 +84,11 @@ def parse_zero_shot_cot_llm_results(results_jsonl_path: str) -> Dict[int, int]:
             if response["response"]["candidates"][0]["finishReason"] == "STOP":
                 llm_output = response["response"]["candidates"][0]["content"]["parts"][0]["text"]
                 predictions[row_id] = llm_output.split("FINAL PREDICTION:")[-1].strip()
-                predictions[row_id] = int(re.search(r'\d+', predictions[row_id]).group()) 
+                num = re.search(r'\d+', predictions[row_id])
+                if num != None:
+                    predictions[row_id] = int(num.group())
+                else:
+                    predictions[row_id] = -1
             else:
                 interrupted_requests += 1
 
@@ -102,7 +114,11 @@ def parse_cot_llm_results(results_jsonl_path: str) -> Dict[int, int]:
             if response["response"]["candidates"][0]["finishReason"] == "STOP":
                 llm_output = response["response"]["candidates"][0]["content"]["parts"][0]["text"]
                 prediction = llm_output.split("FINAL PREDICTION:")[-1].strip()
-                prediction = int(re.search(r'\d+', prediction).group())
+                num = re.search(r'\d+', prediction)
+                if num != None:
+                    prediction = int(num.group())
+                else:
+                    prediction = -1
                 if row_id not in predictions:
                     predictions[row_id] = [prediction]
                 else:
