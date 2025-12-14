@@ -177,7 +177,7 @@ class Pipeline:
             results_jsonl_path=reason_generator.destination_file_name
         )
         self.results["reasoning"] = reasoning
-        self.results["num_diverse_examples"] = len(reasoning)
+        self.results["num_reasoning_received"] = len(reasoning)
         print("[PIPELINE] Reasoning generation completed.")
 
         # llm as judge
