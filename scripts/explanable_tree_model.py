@@ -103,7 +103,7 @@ class ExplainableModel:
         api = wandb.Api()
         sweep = api.sweep(f"{self.project_name}/{self.sweep_id}")
         best_run = sweep.best_run()
-        return json.loads(best_run.config)
+        return best_run.config
     
     def __train_model(self):
         best_params = self.__fetch_best_params()

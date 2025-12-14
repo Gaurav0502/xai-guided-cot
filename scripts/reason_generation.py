@@ -36,7 +36,7 @@ class ReasonGenerator:
         # inputs
         self.dataset = dataset
         self.dataset_config = json.load(open(dataset.config_file_path, "r"))
-
+        self.random_sample_count = random_sample_count
         self.model = model
 
         self.prompt_gen_fn = prompt_gen_fn
