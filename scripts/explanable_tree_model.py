@@ -2,7 +2,6 @@
 import pandas as pd
 import numpy as np
 import json
-from scripts.sanitize_wandb_config import sanitize_wandb_config
 from scripts.configs import Dataset
 
 # module used for model training
@@ -12,41 +11,71 @@ import xgboost as xgb
 
 # module used for hyperparameter tuning
 import wandb
+from scripts.sanitize_wandb_config import sanitize_wandb_config
 from sklearn.metrics import f1_score, accuracy_score
 from sklearn.model_selection import StratifiedKFold
 
-# module used for handling secrets
-import dotenv
-import os
-dotenv.load_dotenv()
-WANDB_API_KEY = os.getenv("WANDB_API_KEY")
-WANDB_PROJECT_NAME = os.getenv("WANDB_PROJECT_NAME")
+# environment variables
+from scripts.constants import (WANDB_PROJECT_NAME, 
+                               WANDB_API_KEY,
+                               SUPPORTED_EXPLAINABLE_MODELS)
 
 # module used for explainability
 import shap
 
+# module used for typing
+from typing import Any, Dict
+
 # to suppress wandb info logs
+import os
 os.environ["WANDB_SILENT"] = "true"
 
+# explainable tree-based 
+# model class
 class ExplainableModel:
-    def __init__(self, dataset: Dataset, estimator: xgb.XGBClassifier | DecisionTreeClassifier):
 
-        # model
+    # initialization
+    def __init__(
+            self, 
+            dataset: Dataset, 
+            estimator: Any
+        ) -> None:
+        """
+        Initializes the ExplainableModel with dataset and estimator.
+
+        Args:
+            dataset (Dataset): Dataset configuration object.
+            estimator (Any): Tree-based model instance.
+
+        Returns:
+            None
+        """
+
+        # inputs
+
+        ## model
         self.model = estimator
+        cls_name = self.model.__class__.__name__
+        if cls_name not in SUPPORTED_EXPLAINABLE_MODELS:
+           allowed = ", ".join(sorted(SUPPORTED_EXPLAINABLE_MODELS))
+           raise ValueError(
+               f"Unsupported model class: {cls_name}\n"
+                f"Allowed: {allowed}"
+            )
 
-        # dataset
+        ## dataset
         self.dataset_path = dataset.path
-        if dataset.preprocess_fn:
-            self.preprocess = dataset.preprocess_fn
-        else:
-            raise ValueError("Preprocess function must be provided in Dataset.")
-        
+        self.preprocess = dataset.preprocess_fn
+
+        ## load and preprocess data
         self.df = self.preprocess(pd.read_csv(self.dataset_path))
         self.target_column = dataset.target_col
 
+        ## paths to log explanation data
         self.SHAP_DATA_DIR = dataset.shap_vals_path
         self.DATASET_CONFIG_DIR = dataset.config_file_path
 
+        ## split data
         self.X = self.df.drop(columns=[self.target_column])
         self.y = self.df[self.target_column]
 
@@ -54,18 +83,38 @@ class ExplainableModel:
             self.X, self.y, test_size=0.2, random_state=42
         )
 
-        # wandb
+        ## wandb
         self.project_name = WANDB_PROJECT_NAME
 
-        # explanation attributes
+        # output
+
+        ## explanation attributes
         self.feature_importances = None
         self.shap_values = None
 
-    def __train_sweep(self, config=None):
+    # training the model 
+    # for a single sweep
+    def __train_sweep(
+            self, 
+            config=None
+        ) -> None:
+        """
+        Trains the model using cross-validation for a single hyperparameter sweep.
+
+        Args:
+            config (dict, optional): Hyperparameter configuration for the sweep.
+
+        Returns:
+            None
+            Results are logged to wandb.
+        """
 
         with wandb.init(config=config, project=self.project_name) as run:
+
+            # get param config
             config = wandb.config
 
+            # train and cross-validate
             self.model.set_params(**config)
             skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
@@ -82,6 +131,7 @@ class ExplainableModel:
                 f2_scores.append(f1_score(y_val, y_pred, 
                                           average="macro"))
             
+            # log results
             results = {
                 "accuracy": np.mean(acc),
                 "accuracy_std": np.std(acc),
@@ -91,33 +141,101 @@ class ExplainableModel:
 
             run.log(results)
 
-    def __tune(self, params_grid_file: str):
+    # hyperparameter tuning
+    def __tune(
+            self, 
+            params_grid_file: str
+        ) -> None:
+        """
+        Runs hyperparameter tuning using a parameter grid file.
+
+        Args:
+            params_grid_file (str): Path to the hyperparameter grid JSON file.
+
+        Returns:
+            None
+            Results are logged to wandb.
+        """
         
-        sweep_config = json.load(open(params_grid_file, 'r'))
+        # read param grid
+        try:
+            sweep_config = json.load(open(params_grid_file, 'r'))
+        except FileNotFoundError:
+            raise
+        except json.JSONDecodeError:
+            raise
         
+        # set wandb api key
         self.sweep_id = wandb.sweep(sweep_config, project=self.project_name)
         wandb.agent(self.sweep_id, function=self.__train_sweep, 
                     count=sweep_config.get("count", 10))
     
-    def __fetch_best_params(self):
-        api = wandb.Api()
-        sweep = api.sweep(f"{self.project_name}/{self.sweep_id}")
-        best_run = sweep.best_run()
+    # fetch best params 
+    # from wandb
+    def __fetch_best_params(self) -> Dict[str, Any]:
+        """
+        Fetches the best hyperparameters from the wandb sweep.
+
+        Args:
+            None
+
+        Returns:
+            Dict[str, Any]: Dictionary of best hyperparameters.
+        """
+        try:
+            api = wandb.Api()
+            sweep = api.sweep(f"{self.project_name}/{self.sweep_id}")
+            best_run = sweep.best_run()
+        except Exception:
+            raise
+
         return json.loads(best_run.config)
     
+    # train model with 
+    # best params
     def __train_model(self):
+        """
+        Trains the model using the best hyperparameters found.
+
+        Args:
+            None
+
+        Returns:
+            None
+            Results are stored in class attributes: `train_pred` and `test_pred`.
+        """
+
+        # get best params
         best_params = self.__fetch_best_params()
         best_params = sanitize_wandb_config(best_params)
+
+        # train model
         self.model.set_params(**best_params)
         self.model.fit(self.X_train, self.y_train)
+
+        # get predictions
         self.train_pred = self.model.predict(self.X_train).tolist()
         self.test_pred = self.model.predict(self.X_test).tolist()
     
-    def __log(self):
+    # logs all dataset
+    # configuration
+    def __log(self) -> None:
+        """
+        Logs feature importances, SHAP values, and configuration data to disk.
 
+        Args:
+            None
+
+        Returns:
+            None
+            Logs are saved to disk: `SHAP_DATA_DIR` and `DATASET_CONFIG_DIR`.
+        """
+
+        # get feature importances
         feature_imps = dict(zip(self.X_train.columns, 
                                 self.feature_importances.tolist()))
 
+        # save shap values
         df_shap = pd.DataFrame(
             data=self.shap_values,
             columns=list(self.X_train.columns)
@@ -127,6 +245,8 @@ class ExplainableModel:
         df_shap.index.name = "idx"
         df_shap.to_csv(self.SHAP_DATA_DIR, index=True)
 
+        # log training 
+        # config
         log = {
             "dataset_path": self.dataset_path,
             "shap_values_path": self.SHAP_DATA_DIR,
@@ -137,20 +257,47 @@ class ExplainableModel:
             "test_predictions": self.test_pred
         }
         
+        # serialize log
         with open(self.DATASET_CONFIG_DIR, 'w') as f:
             json.dump(log, f, indent=4)
         
         print(f"[XAI-MODEL] Logged explanation data to {self.DATASET_CONFIG_DIR}")
 
-    def explain(self, params_grid_file: str):
+    # driver function
+    def explain(
+            self, 
+            params_grid_file: str
+        ) -> None:
+        """
+        Runs the full explainability pipeline: tuning, training, SHAP, and logging.
+
+        Args:
+            params_grid_file (str): Path to the hyperparameter grid JSON file.
+
+        Returns:
+            None
+            Results are saved to disk.
+        """
         
+        # hyperparameter tuning
         self.__tune(params_grid_file=params_grid_file)
         print("[XAI-MODEL] Completed hyperparameter tuning.")
+
+        # train model with 
+        # best params
         self.__train_model()
         print("[XAI-MODEL] Trained model with best hyperparameters.")
+
+        # get xai attributes
         self.feature_importances = self.model.feature_importances_
 
-        explainer = shap.TreeExplainer(self.model)
-        self.shap_values = explainer.shap_values(self.X_train)
+        try:
+            explainer = shap.TreeExplainer(self.model)
+            self.shap_values = explainer.shap_values(self.X_train)
+        except Exception:
+            raise 
+
+        # log explanation 
+        # data
         self.__log()
         print("[XAI-MODEL] Explanation process completed.")
