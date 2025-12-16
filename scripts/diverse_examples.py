@@ -11,22 +11,49 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import silhouette_score
 
 # constants
-MAX_TOKENS = 8096
-NUM_TOKENS_PER_REASON = 150
-CW_BUDGET = MAX_TOKENS // NUM_TOKENS_PER_REASON
+from scripts.constants import MAX_CLUSTERS_BUDGET
 
-def get_diverse_examples(shap_values_fp: str):
+# module used for typing
+from typing import List
 
+# selects diverse
+# decision-making examples
+def get_diverse_examples(shap_values_fp: str) -> List[int]:
+    """
+    Selects a set of diverse decision-making examples using clustering on SHAP values.
+
+    Args:
+        shap_values_fp (str): File path to the CSV containing SHAP values with an 'idx' column.
+
+    Returns:
+        list: List of indices corresponding to medoids of each cluster.
+    """
+
+    # loading SHAP values
     shap_values = pd.read_csv(shap_values_fp)
-    shap_values.set_index("idx", inplace=True)
 
+    try:
+        # map indices 
+        # to original dataset
+        shap_values.set_index("idx", inplace=True)
+    except KeyError:
+        raise KeyError(
+            "SHAP values CSV must contain an 'idx' column "
+            "for mapping to original indices."
+        )
+    except Exception:
+        raise
+
+    # scaling SHAP values
     scaler = StandardScaler()
     shap_values_scaled = scaler.fit_transform(shap_values)
 
-    # finding best number of clusters
+    # upper bound on number
+    # of clusters to try
     N_sqrt = int(np.sqrt(shap_values.shape[0]))
-    MAX_CLUSTERS = min(CW_BUDGET, N_sqrt)
+    MAX_CLUSTERS = min(MAX_CLUSTERS_BUDGET, N_sqrt)
 
+    # hyperparameter tuning
     running_max_silhouette = -1
     best_n_clusters = 2
     for n_clusters in range(2, MAX_CLUSTERS + 1):
@@ -40,12 +67,13 @@ def get_diverse_examples(shap_values_fp: str):
             running_max_silhouette = silhouette_avg
             best_n_clusters = n_clusters
     
-    print(f"Found best number of clusters: k={best_n_clusters} with silhouette score: {running_max_silhouette}")
+    print(f"[DIVERSE EXAMPLES] Found best number of clusters: k={best_n_clusters} with silhouette score: {running_max_silhouette}")
 
     # getting diverse indices
     kmeans = KMeans(n_clusters=best_n_clusters, random_state=42)
     cluster_labels = kmeans.fit_predict(shap_values_scaled)
 
+    # locating the medoids
     diverse_indices = []
     for cluster_id in range(best_n_clusters):
         cluster_indices = np.where(cluster_labels == cluster_id)[0]
@@ -56,6 +84,6 @@ def get_diverse_examples(shap_values_fp: str):
         closest_index = shap_values.index[closest_pos]
         diverse_indices.append(closest_index)
     
-    print(f"Chosen {len(diverse_indices)} diverse examples.")
+    print(f"[DIVERSE EXAMPLES] Chosen {len(diverse_indices)} diverse examples.")
     
     return diverse_indices
