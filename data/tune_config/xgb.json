@@ -1,0 +1,40 @@
+{
+  "method": "bayes",
+  "metric": {
+    "name": "f1_macro",
+    "goal": "maximize"
+  },
+  "parameters": {
+    "learning_rate": {
+      "distribution": "log_uniform_values",
+      "min": 0.005,
+      "max": 0.3
+    },
+    "max_depth": {
+      "distribution": "int_uniform",
+      "min": 3,
+      "max": 8
+    },
+    "subsample": {
+      "distribution": "uniform",
+      "min": 0.6,
+      "max": 1.0
+    },
+    "reg_lambda": {
+      "distribution": "log_uniform_values",
+      "min": 0.01,
+      "max": 10.0
+    },
+    "min_child_weight": {
+      "values": [1, 3, 5]
+    },
+    "n_estimators": {
+      "distribution": "int_uniform",
+      "min": 100,
+      "max": 500
+    },
+    "random_state": {
+      "value": 42
+    }
+  }
+}
