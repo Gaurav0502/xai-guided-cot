@@ -47,3 +47,6 @@ MAX_CLUSTERS_BUDGET = 10
 # prompting strategies
 PROMPTING_STRATEGIES = ["xai-guided-cot", "zero-shot-prompting", 
                         "zero-shot-cot"]
+
+# global sleep time
+SLEEP_TIME = 60

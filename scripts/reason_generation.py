@@ -16,10 +16,11 @@ from datetime import datetime, timezone
 from scripts.configs import Dataset, Model
 
 # env variable
-from scripts.constants import TOGETHER_API_KEY
+from scripts.constants import (TOGETHER_API_KEY,
+                                SLEEP_TIME)
 
 # modules for typing
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 # reason generation class
 class ReasonGenerator:
@@ -29,7 +30,7 @@ class ReasonGenerator:
             self, 
             dataset: Dataset, 
             model: Model, 
-            prompt_gen_fn: callable
+            prompt_gen_fn: Callable
         ) -> None:
         """
         Initializes the ReasonGenerator with dataset, model, and prompt generation function.
@@ -228,16 +229,19 @@ class ReasonGenerator:
         # submits batch job
         batch = client.batches.create_batch(file_id=file_resp.id,
                                             endpoint="/v1/chat/completions" )
-        batch_status = None
+        batch_status = batch
 
         # synchronous monitoring 
         # of batch status
-        while batch.status not in ["COMPLETED", "FAILED"]:
-            time.sleep(60)
+        while True:
+            time.sleep(SLEEP_TIME)
             batch_status = client.batches.get_batch(batch.id)
             print(f"[REASON GENERATION] Current Status: {batch_status.status}")
             if "COMPLETED" in batch_status.status:
                 print("[REASON GENERATION] Batch completed successfully.")
+                break
+            elif "FAILED" in batch_status.status or "CANCELLED" in batch_status.status:
+                print(f"[REASON GENERATION] Batch failed with status: {batch_status.status}")
                 break
 
         # automatically download outputs
