@@ -20,6 +20,9 @@ from scripts.postprocess import (parse_baseline_llm_results,
 ## constants
 from scripts.constants import PROMPTING_STRATEGIES
 
+# module used for type hinting
+from typing import Callable
+
 # model evaluation 
 # class
 class Evaluator:
@@ -30,7 +33,7 @@ class Evaluator:
             prompting_strategy: str, 
             dataset: Dataset, 
             results_jsonl_path: str, 
-            postprocess_fn: callable
+            postprocess_fn: Callable
     ) -> None:
         """
         Initializes the Evaluator with strategy, dataset, results path, and postprocessing function.

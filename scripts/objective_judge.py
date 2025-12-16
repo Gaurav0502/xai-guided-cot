@@ -17,7 +17,11 @@ from datetime import datetime, timezone
 from scripts.configs import Dataset, Model
 
 # env variables
-from scripts.constants import CLAUDE_API_KEY
+from scripts.constants import (CLAUDE_API_KEY,
+                                SLEEP_TIME)
+
+# module used for type hinting
+from typing import Callable
 
 # objective judge class
 class ObjectiveJudge:
@@ -27,7 +31,7 @@ class ObjectiveJudge:
             self, 
             dataset: Dataset, 
             model: Model, 
-            prompt_gen_fn: callable
+            prompt_gen_fn: Callable
         ) -> None:
         """
         Initializes the ObjectiveJudge with dataset, model, and prompt generation function.
@@ -297,7 +301,7 @@ class ObjectiveJudge:
                 break
 
             print(f"[OBJECTIVE JUDGE] Batch {self.batch_id} is still processing...")
-            time.sleep(60)
+            time.sleep(SLEEP_TIME)
 
         print(f"[OBJECTIVE JUDGE] Batch {self.batch_id} has completed processing.")
 

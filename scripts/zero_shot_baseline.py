@@ -19,10 +19,11 @@ from scripts.configs import Dataset, Model, COT
 # env variable
 from scripts.constants import (BUCKET_NAME, 
                                PROJECT_ID, 
-                               LOCATION)
+                               LOCATION,
+                               SLEEP_TIME)
 
 # module used for type hinting
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 # zero-shot baseline
 # class
@@ -32,7 +33,7 @@ class ZeroShotBaseline:
     def __init__(
             self, dataset: Dataset, 
             model: Model,
-            prompt_gen_fn: callable, 
+            prompt_gen_fn: Callable, 
             cot_flag: bool = False, 
             cot: COT = None
         ) -> None:
@@ -268,7 +269,7 @@ class ZeroShotBaseline:
         }
 
         while job.state not in completed_states:
-            time.sleep(30)
+            time.sleep(SLEEP_TIME)
             job = client.batches.get(name=job.name)
             print(f"[{self.id.upper()}] {job.name} state: {job.state}")
 

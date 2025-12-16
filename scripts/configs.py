@@ -82,12 +82,14 @@ class Model(BaseModel):
     Attributes:
         provider (StrictStr): Provider name.
         name (StrictStr): Model name.
-        temperature (StrictFloat): Sampling temperature for generation.
-        max_tokens (StrictInt): Maximum number of tokens to generate.
+        temperature (StrictFloat): Sampling temperature for generation (must be >= 0).
+        max_tokens (StrictInt): Maximum number of tokens to generate (must be > 0).
     
     Raises:
         ValueError: If provider is not in VALID_PROVIDERS.
         ValueError: If model name is not valid for the specified provider.
+        ValueError: If temperature is < 0.
+        ValueError: If max_tokens is <= 0.
 
     """
 
@@ -114,6 +116,20 @@ class Model(BaseModel):
         if provider and v not in VALID_MODELS.get(provider, []):
             raise ValueError(f"Invalid model name: {v} for provider: {provider}. Must be one of {VALID_MODELS[provider]}")
         return v
+    
+    @field_validator("temperature")
+    @classmethod
+    def _validate_temperature(cls, v):
+        if v < 0:
+            raise ValueError(f"Temperature must be >= 0, got {v}")
+        return v
+    
+    @field_validator("max_tokens")
+    @classmethod
+    def _validate_max_tokens(cls, v):
+        if v <= 0:
+            raise ValueError(f"max_tokens must be > 0, got {v}")
+        return v
 
 # chain-of-thought 
 # configuration
@@ -124,7 +140,10 @@ class COT(BaseModel):
     Attributes:
         num_examples_per_agent (StrictInt): Number of examples per agent.
         reasoning (Dict[StrictInt, StrictStr]): Reasoning steps or templates.
-        thinking_budget (StrictInt): Budget for reasoning steps.
+        thinking_budget (StrictInt): Budget for reasoning steps (must be >= 0).
+    
+    Raises:
+        ValueError: If thinking_budget is < 0.
 
     """
     
@@ -135,4 +154,11 @@ class COT(BaseModel):
     model_config = {
         "validate_assignment": True,
     }
+    
+    @field_validator("thinking_budget")
+    @classmethod
+    def _validate_thinking_budget(cls, v):
+        if v < 0:
+            raise ValueError(f"thinking_budget must be >= 0, got {v}")
+        return v
     

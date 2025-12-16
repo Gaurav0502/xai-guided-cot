@@ -20,10 +20,11 @@ from scripts.configs import Dataset, Model, COT
 # env variables
 from scripts.constants import (BUCKET_NAME,
                                PROJECT_ID,
-                               LOCATION)
+                               LOCATION,
+                               SLEEP_TIME)
 
 # module used for type hinting
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 # icl classification 
 # class
@@ -33,7 +34,7 @@ class ICLClassifier:
             dataset: Dataset, 
             model: Model, 
             cot: COT, 
-            prompt_gen_fn: callable
+            prompt_gen_fn: Callable
         ) -> None:
         """
         Initializes the ICLClassifier with dataset, model, COT configuration, and prompt generation function.
@@ -326,7 +327,8 @@ class ICLClassifier:
             )
         except Exception as e:
             print("[ICL CLASSIFIER] Error submitting batch job to Vertex AI.")
-            raise AssertionError("ICL Classifier is a mandatory component. Kindly debug the issue and retry:", str(e))
+            raise AssertionError("ICL Classifier is a mandatory component. "
+                                 "Kindly debug the issue and retry:", str(e))
 
         print(f"[ICL CLASSIFIER] Submitted Job: {job.name}")
         print(f"[ICL CLASSIFIER] Output base dir: {OUTPUT_DIR}")
@@ -341,11 +343,14 @@ class ICLClassifier:
         }
 
         while job.state not in completed_states:
-            time.sleep(60)
+            time.sleep(SLEEP_TIME)
             job = client.batches.get(name=job.name)
             print(f"[ICL CLASSIFIER] {job.name} state: {job.state}")
 
         print(f"[ICL CLASSIFIER] Final state: {job.state}")
+        if not job.state == JobState.JOB_STATE_SUCCEEDED:
+            raise AssertionError("ICL Classifier is a mandatory component."
+                                 "Kindly debug the issue and retry. ")
 
     # download job outputs
     # from GCS

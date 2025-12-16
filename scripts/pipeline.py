@@ -37,7 +37,7 @@ from scripts.evaluation import Evaluator
 
 # modules used for validation
 # and error handling
-from typing import Any, Dict
+from typing import Any, Dict, Callable
 from scripts.constants import SUPPORTED_EXPLAINABLE_MODELS
 
 # env variables
@@ -146,7 +146,7 @@ class Pipeline:
     # baseline evaluation
     def _run_baseline_eval(
             self, baseline_obj, 
-            postprocess_fn: callable
+            postprocess_fn: Callable
         ) -> Dict[str, Dict[str, float]]:
         """
         Runs baseline evaluation and computes metrics.

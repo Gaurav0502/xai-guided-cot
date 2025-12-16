@@ -100,3 +100,57 @@ def preprocess_titanic(df: pd.DataFrame) -> pd.DataFrame:
     print(f"[Titanic] Dropped {dropped} rows due to NaNs (kept {after} rows).")
 
     return df
+
+def preprocess_mushroom(df: pd.DataFrame) -> pd.DataFrame:
+
+    # handle
+    # missing values
+    df = df.copy()
+    df = df.replace("?", pd.NA)
+    
+    # Target column mapping (edible=0, poisonous=1)
+    df["class"] = df["class"].map({"e": 0, "p": 1})
+
+    # get all categorical columns
+    categorical_cols = [col for col in df.columns if col != "class"]
+    
+    # design mapping for
+    # bruises column
+    special_mappings = {
+        "bruises": {"f": 0, "t": 1}  # False=0, True=1
+    }
+    
+    # generate mappings for
+    # other categorical columns
+    feature_mappings = {}
+    for col in categorical_cols:
+
+        # special case
+        if col in special_mappings:
+            feature_mappings[col] = special_mappings[col]
+        else:
+            
+            # get unique values
+            unique_vals = sorted(df[col].dropna().unique())
+
+            # generate mapping
+            feature_mappings[col] = {val: idx for idx, val in enumerate(unique_vals)}
+
+    # encode categorical columns
+    for col, mapping in feature_mappings.items():
+        if col in df.columns:
+            df[col] = df[col].map(mapping)
+
+    # convert all columns
+    # to numeric
+    df = df.apply(pd.to_numeric, errors="coerce")
+
+    # drop null values
+    before = len(df)
+    df = df.dropna()
+    after = len(df)
+    dropped = before - after
+
+    print(f"[Mushroom] Dropped {dropped} rows due to NaNs (kept {after} rows).")
+
+    return df
