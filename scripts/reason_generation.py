@@ -233,12 +233,15 @@ class ReasonGenerator:
 
         # synchronous monitoring 
         # of batch status
-        while batch.status not in ["COMPLETED", "FAILED"]:
+        while True:
             time.sleep(SLEEP_TIME)
             batch_status = client.batches.get_batch(batch.id)
             print(f"[REASON GENERATION] Current Status: {batch_status.status}")
             if "COMPLETED" in batch_status.status:
                 print("[REASON GENERATION] Batch completed successfully.")
+                break
+            elif "FAILED" in batch_status.status or "CANCELLED" in batch_status.status:
+                print(f"[REASON GENERATION] Batch failed with status: {batch_status.status}")
                 break
 
         # automatically download outputs
