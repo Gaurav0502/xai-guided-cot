@@ -138,7 +138,7 @@ To orchestrate an end-to-end generate-AI workflow (or pipeline) for automating t
 
     <b><u>Note:</u></b> The dataset name can be one among this list: `titanic`, `loan`, `diabetes`, and `mushroom`. Any other dataset name will raise a `ValueError`.
 
-- The `experiments/` contains a `metrics.json` and a `results.ipynb`. The `metrics.json` file has the classification metrics for our experiments along with the objective judge evaluation. The `results.ipynb` file discusses our results through tabulations and visualizations.
+- The `experiments/` contains a `metrics.json`,  `results.ipynb`, and `stat_sig.py`. The `metrics.json` file has the classification metrics for our experiments along with the objective judge evaluation. The `results.ipynb` file discusses our results through tabulations and visualizations. Moreover, the `stat_sig.py` file performs McNemar test for statistical significance between the difference in performance of two models.
 
 - All the batch inference jobs were executed through the terminal since they might take a lot of time to run. A notebook kernel is not the ideal choice for it.
 
