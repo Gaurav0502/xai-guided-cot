@@ -189,7 +189,7 @@ class ExplainableModel:
         except Exception:
             raise
 
-        return json.loads(best_run.config)
+        return best_run.config
     
     # train model with 
     # best params

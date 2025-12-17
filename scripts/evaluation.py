@@ -108,7 +108,7 @@ class Evaluator:
         Returns:
             None.
             Use the `metrics` attribute to access evaluation results.
-    """
+        """
 
         self.__load_results()
 

@@ -1,0 +1,66 @@
+{
+    "titanic": {
+        "xgboost": 0.748,
+        "xai-guided-cot": 0.779,
+        "zero-shot-cot": 0.609,
+        "baseline": 0.755,
+        "llm_as_judge": {
+            "faithfulness": 4.75,
+            "consistency": 4.65,
+            "coherence": 4.75
+        }
+    },
+    "diabetes": {
+        "xgboost": 0.719,
+        "xai-guided-cot": 0.649,
+        "zero-shot-cot": 0.597,
+        "baseline": 0.748,
+        "llm_as_judge": {
+            "faithfulness": 4.75,
+            "consistency": 4.75,
+            "coherence": 4.75
+        }
+    },
+    "loan": {
+        "xgboost": 0.973,
+        "xai-guided-cot": 0.822,
+        "zero-shot-cot": 0.818,
+        "baseline": 0.621,
+        "llm_as_judge": {
+            "faithfulness": 4.5,
+            "consistency": 4.0,
+            "coherence": 4.75
+        }
+    },
+    "mushroom": {
+        "xgboost": 1.0,
+        "xai-guided-cot": 0.965,
+        "zero-shot-cot": 0.592,
+        "baseline": 0.578,
+        "llm_as_judge": {
+            "faithfulness": 4.72,
+            "consistency": 4.63,
+            "coherence": 4.74
+        }
+    },
+    "masked_titanic": {
+        "xai-guided-cot": 0.745,
+        "zero-shot-cot": 0.542,
+        "baseline": 0.577
+    },
+    "masked_diabetes": {
+        "xai-guided-cot": 0.743,
+        "zero-shot-cot": 0.486,
+        "baseline": 0.633
+    },
+    "masked_loan": {
+        "xai-guided-cot": 0.803,
+        "zero-shot-cot": 0.447,
+        "baseline": 0.469
+    },
+    "masked_mushroom": {
+        "xai-guided-cot": 0.921,
+        "zero-shot-cot": 0.354,
+        "baseline": 0.448
+    }
+}
