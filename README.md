@@ -35,13 +35,13 @@ To orchestrate an end-to-end generate-AI workflow (or pipeline) for automating t
     venv\Scripts\activate # Windows
     ```
 
-- Install all packages in the ```requirements.txt``` file.
+- Install all packages in the `requirements.txt` file.
 
     ```bash
     pip3 install -r requirements.txt
     ```
 
-- Optionally, you may have install `toon_format` from `toon-python` separately. (it is there is also there in the `requirements.txt`)
+- You may have to install `toon_format` from `toon-python` separately. (though it's also included in `requirements.txt`)
 
     ```bash
     pip3 install git+https://github.com/toon-format/toon-python.git
@@ -62,13 +62,14 @@ To orchestrate an end-to-end generate-AI workflow (or pipeline) for automating t
 
 - Get API keys from Together AI (`TOGETHER_API_KEY`) and Anthropic Developer Platform (`CLAUDE_API_KEY`). Add them into the `.env` file created by `setup.sh`.
 
-- Use may require a `WANDB_API_KEY` and `WANDB_PROJECT_NAME` since the tree-based `ExplanableModel` is trained and tuned using `wandb sweep`
+- You may require a `WANDB_API_KEY` and `WANDB_PROJECT_NAME` since the tree-based `ExplanableModel` is trained and tuned using `wandb sweep`.
 
-- Now, you must create setup Google Cloud Provider (GCP) with the following steps:
+- Now, you must setup Google Cloud Provider (GCP) with the following steps:
     1. Create a Project in GCP and record the `PROJECT_ID`.
-    2. Inside the Project, create GCP Bucket to store the batch inference job JSONL files for Vertex AI.
-    3. Record your `BUCKET_NAME`, `LOCATION`. 
-    4. Ensure that the `LOCATION` you choose has the model you want to use because the code in this repository requires the location for both GCP Bucket and Vertex AI Batch Inference to be same (ideally, you can use different ones).
+    2. Ensure you enable Billing on the required APIs (Vertex AI and Google Cloud Storage).
+    3. Inside the Project, create GCP Bucket to store the batch inference job JSONL files (inputs and outputs) for Vertex AI.
+    4. Record your `BUCKET_NAME`, `LOCATION`. 
+    5. Ensure that the `LOCATION` you choose has the model you want to use because the code in this repository requires the `LOCATION` for both GCP Bucket and Vertex AI Batch Inference to be same.
 
 - Finally, your `.env` file must look as follows:
 
@@ -89,53 +90,73 @@ To orchestrate an end-to-end generate-AI workflow (or pipeline) for automating t
     CLAUDE_API_KEY=<YOUR-CLAUDE-API-KEY>
     ```
 
-<b><u>Note:</u></b> Only the API keys are secrets. Others are just kept inside the `.env` since they define the environment for different SDKs.
+<b><u>Notes:</u></b>
+
+1. Only the API keys are secrets. Others are just kept inside the `.env` since they define the environment for different SDKs.
+
+2. If you setup `WANDB_API_KEY` from the CLI, you can ignore that variable. However, the `WANDB_PROJECT_NAME` is required.
+
 
 - If you wish to check if your environment setup is complete, you can run the unit tests inside `test/` using `pytest`.
 
     ```bash
     pytest -v
     ```
+<b><u>Notes:</u></b>
+1. All tests are expected to be successful if the environment is correctly configured.
+2. There is a unit test for overall pipeline execution (`tests/test_pipeline.py`) which hits the real APIs with a small dataset. Therefore, you will be billed for those tests.
 
-All tests are expected to be successful if the environment is correctly configured.
-
-## Tutorial
+## Using the Pipeline
 
 - The repository has a `tutorial.ipynb` file that explains the environment setup procedure in much more detail. 
 
-- It also explains how to use the overall pipeline and its individual components.
+- It also explains how to use the overall pipeline and its individual components. If you want to run the pipeline on a new dataset, then you can follow this notebook.
 
 ## Running the experiments
 
 - We tested the pipeline functionality and prediction performance on four datasets and attempted to answer three research questions:
 
-    1. Can large language models (LLMs) effectively generate natural language reasoning from numerical XAI attributes?
+    1. Can large language models (LLMs) effectively generate natural language reasoning from numerical XAI attributes? (RQ1)
 
-    2. Does providing this natural language reasoning help improve the performance of standard prompt engineering techniques on the tabular binary classification?
+    2. Does providing this natural language reasoning help improve the performance of standard prompt engineering techniques on the tabular binary classification? (RQ2)
 
-    3. How does XAI-Guided-CoT perform in comparison to the tree-based explainable model?
+    3. How does XAI-Guided-CoT perform in comparison to the tree-based explainable model? (RQ3)
 
 - Additionally, we also attempted to perform two ablation studies to further diagnose the improvement in prediction performance:
 
-    1. Does the improvement of XAI-Guided-CoT over the zero shot baseline happen to be because of CoT alone?
+    1. Does the improvement of XAI-Guided-CoT over the zero shot baseline happen to be because of CoT alone? (AB-1)
     
-    2. Does the semantic context provided by dataset metadata (dataset name, column name, and class names) drive the performance or it is the XAI attributes.
+    2. Does the semantic context provided by dataset metadata (dataset name, column name, and class names) drive the performance or is it the XAI attributes? (AB-2)
 
-To run these experiments, you can use the `main.py` file in the root of this repository. Preferably, use it inside the terminal because batch inference jobs can take significant amount of time complete.
+- To run these experiments, you can use the `main.py` file in the root of this repository. Preferably, use it inside the terminal because batch inference jobs can take significant amount of time to complete.
 
     ```bash
     python3 main.py --dataset <dataset-name> # without masking dataset metadata
 
     python3 main.py --dataset <dataset-name> --masked # with masking dataset metadata
     ```
-<b><u>Note:</u></b> The dataset name can be one among this list: `titanic`, `loan`, `diabetes`, `mushroom`. Any other dataset name will raise a `ValueError`.
 
+    <b><u>Note:</u></b> The dataset name can be one among this list: `titanic`, `loan`, `diabetes`, and `mushroom`. Any other dataset name will raise a `ValueError`.
 
-## Results
+- The `experiments/` contains a `metrics.json` and a `results.ipynb`. The `metrics.json` file has the classification metrics for our experiments along with the objective judge evaluation. The `results.ipynb` file discusses our results through tabulations and visualizations.
 
-- To see our results, refer `experiments/results.ipynb`. 
+- All the batch inference jobs were executed through the terminal since they might take a lot of time to run. A notebook kernel is not the ideal choice for it.
 
-- It includes how the results were interpreted. All batch inference jobs were executed through the terminal.
+<b><u>Note:</u></b>
+
+All experimental setup is mentioned inside `experiments/results.ipynb`. However, even with a proper seed value, it is very difficult for the LLM to produce the same reasoning. However, the overall trend of the results is reproducible.
+
+## Summary of Findings
+
+- Large language models can effectively generate natural language reasoning from numerical XAI attributes. Moreover, this reasoning is consistent in terms of the numerical values and has an acceptable grammatical structure. (RQ1)
+
+- XAI-Guided-CoT does show promising results in comparison to that of standard prompt engineering techniques but a more exhaustive evaluation can provide more statistical evidence about the lift in performance. (RQ2)
+
+- The knowledge learned from the tree-based explainable model can be transferred to the LLM through natural language reasoning and can make the performance more deterministic compared to the standard LLM behaviour. (RQ3)
+
+- From the results, it is evident that the improvements are not because of CoT alone but are driven by the XAI attributes. Moreover, standard CoT applies generic domain patterns for the prediction while the XAI-Guided-CoT incorporate dataset-specific patterns as well. (AB-1)
+
+- Being text-based models, the standard approaches suffer to perform when the metadata is masked since they lack context. Interestingly, in some cases, the performance is decent but that is an artifact of the binary classification where there are only two possible options leaving less room for misclassifications. (AB-2)
 
 ## References
 
