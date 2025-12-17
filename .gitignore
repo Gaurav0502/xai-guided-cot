@@ -1,15 +1,25 @@
-data/
 *.ipynb_checkpoints
 documents/
 __pycache__/
 wandb/
 rough.ipynb
 .env
+venv/
+
+data/batches/
+
+data/metrics/
+data/tune_config/
+data/shap_values/
+data/dataset_config/
+data/batch_outputs/
 
 *.pdf
 *.docx
 *.pptx
 *.doc
-*.csv
 *.xlsx
 .DS_Store
+data/datasets/loan.csv
+data/datasets/mushroom.csv
+data/datasets/diabetes.csv

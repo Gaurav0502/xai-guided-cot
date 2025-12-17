@@ -15,6 +15,7 @@ DIRS=(
   "data/batch_outputs"
   "data/tune_config"
   "data/batches"
+  "data/metrics"
 )
 
 for d in "${DIRS[@]}"; do

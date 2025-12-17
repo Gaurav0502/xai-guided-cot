@@ -30,15 +30,6 @@ SUPPORTED_EXPLAINABLE_MODELS = {
     "CatBoostClassifier",
 }
 
-# valid LLM providers and models
-VALID_PROVIDERS = ["google", "anthropic", "together"]
-VALID_MODELS = {
-    "google": ["gemini-2.5-flash", "gemini-2.5-pro"],
-    "anthropic": ["claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001", 
-                  "claude-sonnet-4-5", "claude-haiku-4-5"],
-    "together": ["deepseek-ai/DeepSeek-R1"]
-}
-
 # maximum clusters
 # budget for 
 # diverse examples
@@ -50,3 +41,72 @@ PROMPTING_STRATEGIES = ["xai-guided-cot", "zero-shot-prompting",
 
 # global sleep time
 SLEEP_TIME = 60
+
+
+# expriment setup
+from scripts.configs import Dataset, Model
+from scripts.preprocess import (preprocess_titanic,
+                                preprocess_diabetes,
+                                preprocess_loan,
+                                preprocess_mushroom)
+
+titanic_dataset = Dataset(
+    name="titanic",
+    path="data/datasets/titanic.csv",
+    config_file_path="data/dataset_config/titanic_config.json",
+    shap_vals_path="data/shap_values/titanic_shap.csv",
+    preprocess_fn=preprocess_titanic,
+    target_col="Survived",
+    labels={0: "Did not survive", 1: "Survived"}
+)
+
+diabetes_dataset = Dataset(
+    name="diabetes",
+    path="data/datasets/diabetes.csv",
+    config_file_path="data/dataset_config/diabetes_config.json",
+    shap_vals_path="data/shap_values/diabetes_shap.csv",
+    preprocess_fn=preprocess_diabetes,
+    target_col="Outcome",
+    labels={0: "No", 1: "Yes"}
+)
+
+loan_dataset = Dataset(
+    name="loan",
+    path="data/datasets/loan.csv",
+    config_file_path="data/dataset_config/loan_config.json",
+    shap_vals_path="data/shap_values/loan_shap.csv",
+    preprocess_fn=preprocess_loan,
+    target_col="Loan_Status",
+    labels={0: "Not Approved", 1: "Approved"}
+)
+
+mushroom_dataset = Dataset(
+    name="mushroom",
+    path="data/datasets/mushroom.csv",
+    config_file_path="data/dataset_config/mushroom_config.json",
+    shap_vals_path="data/shap_values/mushroom_shap.csv",
+    preprocess_fn=preprocess_mushroom,
+    target_col="Class",
+    labels={0: "Poisonous", 1: "Edible"}
+)
+
+reasoning_gen_model = Model(
+    provider="together",
+    name="deepseek-ai/DeepSeek-R1",
+    temperature=0.6,
+    max_tokens=4096
+)
+
+objective_judge_model = Model(
+    provider="anthropic",
+    name="claude-haiku-4-5",
+    temperature=0.6,
+    max_tokens=4096
+)
+
+cot_model = Model(
+    provider="google",
+    name="gemini-2.5-flash",
+    temperature=0.0,
+    max_tokens=4096
+)
