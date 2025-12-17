@@ -1,6 +1,6 @@
 <div align="center">
 <h1>XAI-Guided-CoT</h1>
-[📖 Tutorial](tutorial.ipynb) | [📊 Results](experiments/results.ipynb)
+<a href="tutorial.ipynb" style="text-decoration: none;">📖 Tutorial</a> | <a href="experiments/results.ipynb" style="text-decoration: none;">📊 Results</a>
 </div>
 
 ## Aim
